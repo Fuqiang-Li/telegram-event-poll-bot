@@ -1,3 +1,4 @@
 *.exe
 .vscode
-token
+config.json
+*.db

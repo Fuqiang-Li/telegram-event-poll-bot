@@ -2,39 +2,51 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"os"
 	"os/signal"
 
 	"github.com/go-telegram/bot"
-	"github.com/go-telegram/bot/models"
 )
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	opts := []bot.Option{
-		bot.WithMessageTextHandler("/start", bot.MatchTypePrefix, startCommandHandler),
-		bot.WithCallbackQueryDataHandler("event", bot.MatchTypePrefix, eventPollResponseHandler),
-		bot.WithDefaultHandler(handler),
+	config, err := loadConfig("config.json")
+	if err != nil {
+		panic(err)
 	}
-	// todo read token from env
-	token := os.Getenv("TG_BOT_TOKEN")
-	b, err := bot.New(token, opts...)
+
+	// Add database connection
+	db, err := sql.Open("sqlite", "events.db")
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	// Initialize the DAO
+	eventDAO := NewEventDAO(db)
+	err = eventDAO.Initialize()
+	if err != nil {
+		panic(err)
+	}
+
+	createEventHandler := NewCreateEventHandler(eventDAO)
+	eventPollResponseHandler := NewEventPollResponseHandler(eventDAO)
+	defaultHandler := NewDefaultHandler(createEventHandler)
+
+	opts := []bot.Option{
+		bot.WithDefaultHandler(defaultHandler.handle),
+		bot.WithMessageTextHandler("/start", bot.MatchTypePrefix, createEventHandler.handleStart),
+		bot.WithCallbackQueryDataHandler("event", bot.MatchTypePrefix, eventPollResponseHandler.handle),
+	}
+	b, err := bot.New(config.TelegramToken, opts...)
 	if err != nil {
 		panic(err)
 	}
 
 	log.Println("Starting bot")
 	b.Start(ctx)
-}
-
-func handler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	if update.Message == nil {
-		return
-	}
-	if eventStepHandler(ctx, b, update) {
-		return
-	}
 }
