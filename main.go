@@ -40,6 +40,7 @@ func main() {
 	opts := []bot.Option{
 		bot.WithDefaultHandler(defaultHandler.handle),
 		bot.WithMessageTextHandler("/start", bot.MatchTypePrefix, createEventHandler.handleStart),
+		bot.WithMessageTextHandler("/send", bot.MatchTypePrefix, createEventHandler.handleSend),
 		bot.WithCallbackQueryDataHandler("event", bot.MatchTypePrefix, eventPollResponseHandler.handle),
 	}
 	b, err := bot.New(config.TelegramToken, opts...)

@@ -53,31 +53,15 @@ func (h *EventPollResponseHandler) handle(ctx context.Context, b *bot.Bot, updat
 			return
 		}
 	}
-
-	kb := &models.InlineKeyboardMarkup{
-		InlineKeyboard: [][]models.InlineKeyboardButton{
-			{
-				{Text: "Yes", CallbackData: eventYes},
-				{Text: "No", CallbackData: eventNo},
-			},
-		},
-	}
-	eventUsers, err := h.eventDao.GetEventUsers(event.ID)
+	users, err := h.eventDao.GetEventUsers(event.ID)
 	if err != nil {
 		log.Println("error getting event users", err)
 	}
-	users := make([]string, len(eventUsers))
-	for i, user := range eventUsers {
-		users[i] = user.User
-	}
-	eventAndUsers := EventAndUsers{
-		Event: *event,
-		Users: users,
-	}
+	msgText, kb := getPollParams(*event, users)
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      event.ChatID,
 		MessageID:   messageID,
-		Text:        eventAndUsers.GetPollMessage(),
+		Text:        msgText,
 		ReplyMarkup: kb,
 	})
 	if err != nil {

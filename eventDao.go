@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -12,7 +11,7 @@ import (
 type Event struct {
 	ID          int64
 	Description string
-	MinPax      int
+	DesiredPax  int
 	MaxPax      int
 	ChatID      int64
 	MessageID   int
@@ -41,7 +40,7 @@ func (dao *EventDAO) Initialize() error {
 		`CREATE TABLE IF NOT EXISTS events (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			description TEXT,
-			min_pax INTEGER,
+			desired_pax INTEGER,
 			max_pax INTEGER,
 			chat_id INTEGER,
 			message_id INTEGER,
@@ -68,14 +67,14 @@ func (dao *EventDAO) Initialize() error {
 }
 
 func (dao *EventDAO) GetEventByID(eventID int64) (*Event, error) {
-	query := `SELECT id, description, min_pax, max_pax, chat_id, message_id, created_by,
+	query := `SELECT id, description, desired_pax, max_pax, chat_id, message_id, created_by,
 		started_at, created_at, updated_at FROM events WHERE id = ?`
 	row := dao.db.QueryRow(query, eventID)
 	event := &Event{}
 	err := row.Scan(
 		&event.ID,
 		&event.Description,
-		&event.MinPax,
+		&event.DesiredPax,
 		&event.MaxPax,
 		&event.ChatID,
 		&event.MessageID,
@@ -90,21 +89,38 @@ func (dao *EventDAO) GetEventByID(eventID int64) (*Event, error) {
 	return event, nil
 }
 
-func (dao *EventDAO) SaveEvent(event *Event) error {
+func (dao *EventDAO) SaveEvent(event *Event) (int64, error) {
 	query := `INSERT INTO events (
-		description, min_pax, max_pax, chat_id, message_id, created_by,
+		description, desired_pax, max_pax, chat_id, message_id, created_by,
 		started_at, created_at, updated_at
 	) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
-	_, err := dao.db.Exec(
+	result, err := dao.db.Exec(
 		query,
 		event.Description,
-		event.MinPax,
+		event.DesiredPax,
 		event.MaxPax,
 		event.ChatID,
 		event.MessageID,
 		event.CreatedBy,
 		event.StartedAt,
 	)
+	if err != nil {
+		return 0, err
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
+}
+
+func (dao *EventDAO) UpdateEvent(event *Event) error {
+	query := `UPDATE events 
+		SET description = ?, desired_pax = ?, max_pax = ?, chat_id = ?, message_id = ?, created_by = ?,
+		started_at = ?, updated_at = CURRENT_TIMESTAMP 
+		WHERE id = ?`
+	_, err := dao.db.Exec(query, event.Description, event.DesiredPax, event.MaxPax, event.ChatID, event.MessageID, event.CreatedBy,
+		event.StartedAt, event.ID)
 	return err
 }
 
@@ -117,14 +133,14 @@ func (dao *EventDAO) UpdateMessageID(eventID int64, messageID int) error {
 }
 
 func (dao *EventDAO) GetEventByMessageID(messageID int) (*Event, error) {
-	query := `SELECT id, description, min_pax, max_pax, chat_id, message_id, created_by,
+	query := `SELECT id, description, desired_pax, max_pax, chat_id, message_id, created_by,
 		created_at, updated_at FROM events WHERE message_id = ?`
 	row := dao.db.QueryRow(query, messageID)
 	event := &Event{}
 	err := row.Scan(
 		&event.ID,
 		&event.Description,
-		&event.MinPax,
+		&event.DesiredPax,
 		&event.MaxPax,
 		&event.ChatID,
 		&event.MessageID,
@@ -138,7 +154,7 @@ func (dao *EventDAO) GetEventByMessageID(messageID int) (*Event, error) {
 	return event, nil
 }
 
-func (dao *EventDAO) GetEventUsers(eventID int64) ([]EventUser, error) {
+func (dao *EventDAO) GetEventUsers(eventID int64) ([]string, error) {
 	query := "SELECT event_id, user FROM event_users WHERE event_id = ?"
 	rows, err := dao.db.Query(query, eventID)
 	if err != nil {
@@ -146,16 +162,16 @@ func (dao *EventDAO) GetEventUsers(eventID int64) ([]EventUser, error) {
 	}
 	defer rows.Close()
 
-	var eventUsers []EventUser
+	var users []string
 	for rows.Next() {
 		var eventUser EventUser
 		err := rows.Scan(&eventUser.EventID, &eventUser.User)
 		if err != nil {
 			return nil, err
 		}
-		eventUsers = append(eventUsers, eventUser)
+		users = append(users, eventUser.User)
 	}
-	return eventUsers, nil
+	return users, nil
 }
 
 func (dao *EventDAO) SaveEventUser(eventUser *EventUser) error {
@@ -184,21 +200,4 @@ func (dao *EventDAO) UpdateStartTime(eventID int64, startTime time.Time) error {
 		WHERE id = ?`
 	_, err := dao.db.Exec(query, startTime, eventID)
 	return err
-}
-
-// Update the migration function
-func (dao *EventDAO) Migrate() error {
-	queries := []string{
-		`ALTER TABLE events ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;`,
-		`ALTER TABLE events ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;`,
-		`ALTER TABLE events ADD COLUMN started_at DATETIME;`,
-	}
-
-	for _, query := range queries {
-		_, err := dao.db.Exec(query)
-		if err != nil && !strings.Contains(err.Error(), "duplicate column name") {
-			return err
-		}
-	}
-	return nil
 }

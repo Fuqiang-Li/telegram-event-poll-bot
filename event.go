@@ -16,17 +16,25 @@ const (
 	timeFormat = "2006-01-02 15:04"
 )
 
+func (e *Event) String() string {
+	msg := fmt.Sprintf("Description: %s\nDesired Pax: %d\nMax Pax: %d", e.Description, e.DesiredPax, e.MaxPax)
+	if e.StartedAt != nil {
+		msg += fmt.Sprintf("\nStarts at: %s", e.StartedAt.Format(timeFormat))
+	} else {
+		msg += "\nStarts at: Not set"
+	}
+	return msg
+}
+
+func (e *Event) updateDetails(chatID int64, messageID int, createdBy string) {
+	e.ChatID = chatID
+	e.MessageID = messageID
+	e.CreatedBy = createdBy
+}
+
 type EventAndUsers struct {
 	Event
 	Users []string
-}
-
-func (e *EventAndUsers) String() string {
-	msg := fmt.Sprintf("Description: %s\nMin Pax: %d\nMax Pax: %d", e.Description, e.MinPax, e.MaxPax)
-	if e.StartedAt != nil {
-		msg += fmt.Sprintf("\nStarts at: %s", e.StartedAt.Format(timeFormat))
-	}
-	return msg
 }
 
 func (e *EventAndUsers) GetPollMessage() string {
@@ -34,8 +42,8 @@ func (e *EventAndUsers) GetPollMessage() string {
 	if e.StartedAt != nil {
 		msg += fmt.Sprintf("Start Time: %s\n", e.StartedAt.Format(timeFormat))
 	}
-	if e.MinPax > 0 {
-		msg += fmt.Sprintf("Min Pax: %d\n", e.MinPax)
+	if e.DesiredPax > 0 {
+		msg += fmt.Sprintf("Desired Pax: %d\n", e.DesiredPax)
 	}
 	if e.MaxPax > 0 {
 		msg += fmt.Sprintf("Max Pax: %d\n", e.MaxPax)
@@ -49,20 +57,21 @@ func (e *EventAndUsers) GetPollMessage() string {
 	return msg
 }
 
-func (e *EventAndUsers) onFirstSent(chatID int64, messageID int, createdBy string) {
-	e.ChatID = chatID
-	e.Users = []string{}
-	e.MessageID = messageID
-	e.CreatedBy = createdBy
+func sendEventPoll(ctx context.Context, b *bot.Bot, chatID any, event Event, users []string) int {
+	msgText, kb := getPollParams(event, users)
+	msg, err := b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      chatID,
+		Text:        msgText,
+		ReplyMarkup: kb,
+	})
+	if err != nil {
+		log.Println("Error sending event poll to", chatID, err)
+		return 0
+	}
+	return msg.ID
 }
 
-// State tracking for each user
-type UserState struct {
-	Step        int
-	CurrentData EventAndUsers
-}
-
-func sendEventPoll(ctx context.Context, b *bot.Bot, event EventAndUsers, chatID any) int {
+func getPollParams(event Event, users []string) (string, *models.InlineKeyboardMarkup) {
 	// TODO: accept options from user input
 	kb := &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
@@ -72,15 +81,9 @@ func sendEventPoll(ctx context.Context, b *bot.Bot, event EventAndUsers, chatID 
 			},
 		},
 	}
-
-	msg, err := b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:      chatID,
-		Text:        event.GetPollMessage(),
-		ReplyMarkup: kb,
-	})
-	if err != nil {
-		log.Println("Error sending event poll to", chatID, err)
-		return 0
+	eventAndUsers := EventAndUsers{
+		Event: event,
+		Users: users,
 	}
-	return msg.ID
+	return eventAndUsers.GetPollMessage(), kb
 }

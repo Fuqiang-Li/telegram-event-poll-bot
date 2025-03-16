@@ -11,6 +11,12 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
+// State tracking for each user
+type UserState struct {
+	Step        int
+	CurrentData Event
+}
+
 // Map to track state for each user
 var userStates = make(map[int64]*UserState)
 
@@ -22,10 +28,43 @@ func NewCreateEventHandler(eventDao *EventDAO) *CreateEventHandler {
 	return &CreateEventHandler{eventDao: eventDao}
 }
 
+func (h *CreateEventHandler) handleSend(ctx context.Context, b *bot.Bot, update *models.Update) {
+	eventID, err := strconv.ParseInt(getCommandArgument(update), 10, 64)
+	if err != nil {
+		log.Println("error parsing event ID", err)
+		return
+	}
+	event, err := h.eventDao.GetEventByID(eventID)
+	if err != nil {
+		log.Println("error getting event", err)
+		return
+	}
+	if event.CreatedBy != getUserFullName(update.Message.From) {
+		log.Println("event not created by user", getUserFullName(update.Message.From))
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: update.Message.Chat.ID,
+			Text:   "You are not authorized to send this event",
+		})
+		return
+	}
+	chatID := update.Message.Chat.ID
+	users, err := h.eventDao.GetEventUsers(eventID)
+	if err != nil {
+		log.Println("error getting event users", err)
+	}
+	eventMsgID := sendEventPoll(ctx, b, chatID, *event, users)
+	event.updateDetails(chatID, eventMsgID, event.CreatedBy)
+	err = h.eventDao.UpdateEvent(event)
+	if err != nil {
+		log.Println("error saving event", err)
+	}
+	log.Println("event id", eventID)
+}
+
 func (h *CreateEventHandler) handleStart(ctx context.Context, b *bot.Bot, update *models.Update) {
 	chatID := update.Message.Chat.ID
 	// Initialize user state
-	userStates[chatID] = &UserState{Step: 1, CurrentData: EventAndUsers{}}
+	userStates[chatID] = &UserState{Step: 1, CurrentData: Event{}}
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: chatID,
@@ -55,7 +94,7 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 			ChatID: chatID,
 			Text: `Got it! You will be able to set the following settings in sequence. 
 			1. Start Time
-			2. Min Pax
+			2. Desired Pax
 			3. Max Pax
 			At any step, you can enter 'S' to skip all the remaining settings.
 			Now, please enter the start time. For example, ` + timeFormat + ". Enter 0 to skip.",
@@ -76,23 +115,23 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 		userState.Step = 3
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "Great! Now, please enter the minimum number of participants (min pax). Enter 0 to skip.",
+			Text:   "Great! Now, please enter the desired number of participants (Desired Pax). Enter 0 to skip.",
 		})
 	case 3:
-		// Collect min pax
-		minPax, err := strconv.Atoi(update.Message.Text)
+		// Collect desired pax
+		desiredPax, err := strconv.Atoi(update.Message.Text)
 		if err != nil {
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID: chatID,
-				Text:   "Invalid input. Please enter a valid number for min pax. Enter 0 to skip.",
+				Text:   "Invalid input. Please enter a valid number for Desired Pax. Enter 0 to skip.",
 			})
 			return true
 		}
-		userState.CurrentData.MinPax = minPax
+		userState.CurrentData.DesiredPax = desiredPax
 		userState.Step = 4
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "Great! Now, please enter the maximum number of participants (max pax). Enter 0 to skip.",
+			Text:   "Now, please enter the maximum number of participants (Max Pax). Enter 0 to skip.",
 		})
 	case 4:
 		// Collect max pax
@@ -119,13 +158,17 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 		Text:   event.String(),
 	})
 
-	eventMsgID := sendEventPoll(ctx, b, event, chatID)
-	log.Println("event message id", eventMsgID)
-	event.onFirstSent(chatID, eventMsgID, update.Message.From.FirstName+" "+update.Message.From.LastName)
-	err := h.eventDao.SaveEvent(&event.Event)
+	event.updateDetails(chatID, 0, getUserFullName(update.Message.From))
+	eventID, err := h.eventDao.SaveEvent(&event)
 	if err != nil {
 		log.Println("error saving event", err)
 	}
+	log.Println("event id", eventID)
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   "Event created successfully! You can now send it to the group with command \"/send@PeakEventPollBot " + strconv.FormatInt(eventID, 10) + "\"",
+	})
 	// Clean up user state
 	delete(userStates, chatID)
 	return true
