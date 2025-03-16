@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"strings"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -33,21 +34,27 @@ func (h *EventPollResponseHandler) handle(ctx context.Context, b *bot.Bot, updat
 		CallbackQueryID: update.CallbackQuery.ID,
 		ShowAlert:       false,
 	})
-	user := update.CallbackQuery.From.FirstName + " " + update.CallbackQuery.From.LastName
-	if update.CallbackQuery.Data == eventYes {
-		err = h.eventDao.SaveEventUser(&EventUser{
-			EventID: event.ID,
-			User:    user,
-		})
+	user := getUserFullName(&update.CallbackQuery.From)
+	optionInputs := strings.Split(update.CallbackQuery.Data, callbackSeparator)
+	if len(optionInputs) < 2 {
+		log.Println("invalid option callback", update.CallbackQuery.Data)
+		return
+	}
+	option := optionInputs[1]
+	optionType := optionInputs[2]
+	eventUser := EventUser{
+		EventID: event.ID,
+		User:    user,
+		Option:  option,
+	}
+	if optionType == callbackPostFixIn {
+		err = h.eventDao.SaveEventUser(&eventUser)
 		if err != nil {
 			log.Println("error updating event user", err)
 			return
 		}
-	} else if update.CallbackQuery.Data == eventNo {
-		affectedRows, err := h.eventDao.DeleteEventUser(&EventUser{
-			EventID: event.ID,
-			User:    user,
-		})
+	} else if optionType == callbackPostFixOut {
+		affectedRows, err := h.eventDao.DeleteEventUser(&eventUser)
 		if affectedRows == 0 {
 			log.Println("no event user deleted", err)
 			return
@@ -63,6 +70,7 @@ func (h *EventPollResponseHandler) handle(ctx context.Context, b *bot.Bot, updat
 		MessageID:   messageID,
 		Text:        msgText,
 		ReplyMarkup: kb,
+		ParseMode:   "Markdown",
 	})
 	if err != nil {
 		log.Println("error editing message", err)

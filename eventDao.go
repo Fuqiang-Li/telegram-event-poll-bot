@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -13,6 +14,7 @@ type Event struct {
 	Description string
 	DesiredPax  int
 	MaxPax      int
+	Options     []string
 	ChatID      int64
 	MessageID   int
 	CreatedBy   string
@@ -24,6 +26,7 @@ type Event struct {
 type EventUser struct {
 	EventID int64
 	User    string
+	Option  string
 }
 
 // DAO layer for Event and EventUser
@@ -42,6 +45,7 @@ func (dao *EventDAO) Initialize() error {
 			description TEXT,
 			desired_pax INTEGER,
 			max_pax INTEGER,
+			options TEXT,
 			chat_id INTEGER,
 			message_id INTEGER,
 			created_by TEXT,
@@ -52,8 +56,9 @@ func (dao *EventDAO) Initialize() error {
 		`CREATE TABLE IF NOT EXISTS event_users (
 			event_id INTEGER,
 			user TEXT,
+			option TEXT,
 			FOREIGN KEY(event_id) REFERENCES events(id),
-			UNIQUE(event_id, user)
+			UNIQUE(event_id, user, option)
 		)`,
 	}
 
@@ -67,15 +72,17 @@ func (dao *EventDAO) Initialize() error {
 }
 
 func (dao *EventDAO) GetEventByID(eventID int64) (*Event, error) {
-	query := `SELECT id, description, desired_pax, max_pax, chat_id, message_id, created_by,
+	query := `SELECT id, description, desired_pax, max_pax, options, chat_id, message_id, created_by,
 		started_at, created_at, updated_at FROM events WHERE id = ?`
 	row := dao.db.QueryRow(query, eventID)
 	event := &Event{}
+	var optionsStr string // Temporary variable to hold the options string
 	err := row.Scan(
 		&event.ID,
 		&event.Description,
 		&event.DesiredPax,
 		&event.MaxPax,
+		&optionsStr, // Scan into string first
 		&event.ChatID,
 		&event.MessageID,
 		&event.CreatedBy,
@@ -86,19 +93,28 @@ func (dao *EventDAO) GetEventByID(eventID int64) (*Event, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Convert string back to slice
+	if optionsStr != "" {
+		event.Options = strings.Split(optionsStr, ";")
+	}
 	return event, nil
 }
 
 func (dao *EventDAO) SaveEvent(event *Event) (int64, error) {
+	// Convert options slice to string
+	optionsStr := strings.Join(event.Options, ";")
+
 	query := `INSERT INTO events (
-		description, desired_pax, max_pax, chat_id, message_id, created_by,
+		description, desired_pax, max_pax, options, chat_id, message_id, created_by,
 		started_at, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+
 	result, err := dao.db.Exec(
 		query,
 		event.Description,
 		event.DesiredPax,
 		event.MaxPax,
+		optionsStr, // Use the converted string instead of slice
 		event.ChatID,
 		event.MessageID,
 		event.CreatedBy,
@@ -115,12 +131,24 @@ func (dao *EventDAO) SaveEvent(event *Event) (int64, error) {
 }
 
 func (dao *EventDAO) UpdateEvent(event *Event) error {
+	// Convert options slice to string
+	optionsStr := strings.Join(event.Options, ";")
+
 	query := `UPDATE events 
-		SET description = ?, desired_pax = ?, max_pax = ?, chat_id = ?, message_id = ?, created_by = ?,
+		SET description = ?, desired_pax = ?, max_pax = ?, options = ?, chat_id = ?, message_id = ?, created_by = ?,
 		started_at = ?, updated_at = CURRENT_TIMESTAMP 
 		WHERE id = ?`
-	_, err := dao.db.Exec(query, event.Description, event.DesiredPax, event.MaxPax, event.ChatID, event.MessageID, event.CreatedBy,
-		event.StartedAt, event.ID)
+	_, err := dao.db.Exec(query,
+		event.Description,
+		event.DesiredPax,
+		event.MaxPax,
+		optionsStr, // Use the converted string instead of slice
+		event.ChatID,
+		event.MessageID,
+		event.CreatedBy,
+		event.StartedAt,
+		event.ID,
+	)
 	return err
 }
 
@@ -133,56 +161,63 @@ func (dao *EventDAO) UpdateMessageID(eventID int64, messageID int) error {
 }
 
 func (dao *EventDAO) GetEventByMessageID(messageID int) (*Event, error) {
-	query := `SELECT id, description, desired_pax, max_pax, chat_id, message_id, created_by,
-		created_at, updated_at FROM events WHERE message_id = ?`
+	query := `SELECT id, description, desired_pax, max_pax, options, chat_id, message_id, created_by,
+		started_at, created_at, updated_at FROM events WHERE message_id = ?`
 	row := dao.db.QueryRow(query, messageID)
 	event := &Event{}
+	var optionsStr string // Temporary variable to hold the options string
 	err := row.Scan(
 		&event.ID,
 		&event.Description,
 		&event.DesiredPax,
 		&event.MaxPax,
+		&optionsStr, // Scan into string first
 		&event.ChatID,
 		&event.MessageID,
 		&event.CreatedBy,
+		&event.StartedAt,
 		&event.CreatedAt,
 		&event.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
+	// Convert string back to slice
+	if optionsStr != "" {
+		event.Options = strings.Split(optionsStr, ";")
+	}
 	return event, nil
 }
 
-func (dao *EventDAO) GetEventUsers(eventID int64) ([]string, error) {
-	query := "SELECT event_id, user FROM event_users WHERE event_id = ?"
+func (dao *EventDAO) GetEventUsers(eventID int64) ([]EventUser, error) {
+	query := "SELECT event_id, user, option FROM event_users WHERE event_id = ?"
 	rows, err := dao.db.Query(query, eventID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var users []string
+	var users []EventUser
 	for rows.Next() {
 		var eventUser EventUser
-		err := rows.Scan(&eventUser.EventID, &eventUser.User)
+		err := rows.Scan(&eventUser.EventID, &eventUser.User, &eventUser.Option)
 		if err != nil {
 			return nil, err
 		}
-		users = append(users, eventUser.User)
+		users = append(users, eventUser)
 	}
 	return users, nil
 }
 
 func (dao *EventDAO) SaveEventUser(eventUser *EventUser) error {
-	query := "INSERT INTO event_users (event_id, user) VALUES (?, ?)"
-	_, err := dao.db.Exec(query, eventUser.EventID, eventUser.User)
+	query := "INSERT INTO event_users (event_id, user, option) VALUES (?, ?, ?)"
+	_, err := dao.db.Exec(query, eventUser.EventID, eventUser.User, eventUser.Option)
 	return err
 }
 
 func (dao *EventDAO) DeleteEventUser(eventUser *EventUser) (int64, error) {
-	query := "DELETE FROM event_users WHERE event_id = ? AND user = ?"
-	result, err := dao.db.Exec(query, eventUser.EventID, eventUser.User)
+	query := "DELETE FROM event_users WHERE event_id = ? AND user = ? AND option = ?"
+	result, err := dao.db.Exec(query, eventUser.EventID, eventUser.User, eventUser.Option)
 	if err != nil {
 		return 0, err
 	}

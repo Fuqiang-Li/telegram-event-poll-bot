@@ -64,7 +64,9 @@ func (h *CreateEventHandler) handleSend(ctx context.Context, b *bot.Bot, update 
 func (h *CreateEventHandler) handleStart(ctx context.Context, b *bot.Bot, update *models.Update) {
 	chatID := update.Message.Chat.ID
 	// Initialize user state
-	userStates[chatID] = &UserState{Step: 1, CurrentData: Event{}}
+	userStates[chatID] = &UserState{Step: 1, CurrentData: Event{
+		Options: []string{"Support"},
+	}}
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: chatID,
@@ -96,7 +98,9 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 			1. Start Time
 			2. Desired Pax
 			3. Max Pax
+			4. Options (default: Support)
 			At any step, you can enter 'S' to skip all the remaining settings.
+
 			Now, please enter the start time. For example, ` + timeFormat + ". Enter 0 to skip.",
 		})
 	case 2:
@@ -144,6 +148,32 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 			return true
 		}
 		userState.CurrentData.MaxPax = maxPax
+		userState.Step = 5
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "Now, please enter the options, separated by semicolon and should not contain underscore (e.g. Option 1;Option 2). Enter 0 to skip (default: Support).",
+		})
+	case 5:
+		// Collect options
+		if update.Message.Text != "0" {
+			if strings.Contains(update.Message.Text, "_") {
+				b.SendMessage(ctx, &bot.SendMessageParams{
+					ChatID: chatID,
+					Text:   "Invalid input. Please enter the options, separated by semicolon and should not contain underscore (e.g. Option 1;Option 2). Enter 0 to skip (default: Support).",
+				})
+				return true
+			}
+			options := strings.Split(update.Message.Text, ";")
+			// Remove empty options
+			var validOptions []string
+			for _, option := range options {
+				if opt := strings.TrimSpace(option); opt != "" {
+					validOptions = append(validOptions, opt)
+				}
+			}
+			userState.CurrentData.Options = validOptions
+		}
+
 		userState.Step = -1
 	}
 
@@ -154,8 +184,9 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 	event := userState.CurrentData
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: chatID,
-		Text:   event.String(),
+		ChatID:    chatID,
+		Text:      event.String(),
+		ParseMode: "Markdown",
 	})
 
 	event.updateDetails(chatID, 0, getUserFullName(update.Message.From))
