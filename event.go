@@ -19,7 +19,7 @@ const (
 )
 
 func (e *Event) String() string {
-	msg := fmt.Sprintf("*Description:* %s\n*Desired Pax:* %d\n*Max Pax:* %d", e.Description, e.DesiredPax, e.MaxPax)
+	msg := fmt.Sprintf("*Description:* %s", e.Description)
 	if e.StartedAt != nil {
 		msg += fmt.Sprintf("\n*Starts at:* %s", e.StartedAt.Format(timeFormat))
 	} else {
@@ -56,12 +56,6 @@ func (e *EventAndUsers) GetPollMessage() (string, *models.InlineKeyboardMarkup) 
 	msg := fmt.Sprintf("*Please cast your votes*\n%s\n", e.Description)
 	if e.StartedAt != nil {
 		msg += fmt.Sprintf("*Start Time:* %s\n", e.StartedAt.Format(timeFormat))
-	}
-	if e.DesiredPax > 0 {
-		msg += fmt.Sprintf("*Desired Pax:* %d\n", e.DesiredPax)
-	}
-	if e.MaxPax > 0 {
-		msg += fmt.Sprintf("*Max Pax:* %d\n", e.MaxPax)
 	}
 	for _, option := range e.Options {
 		msg += fmt.Sprintf("*%s*:\n", option)

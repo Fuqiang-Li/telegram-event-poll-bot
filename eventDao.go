@@ -12,13 +12,11 @@ import (
 type Event struct {
 	ID          int64
 	Description string
-	DesiredPax  int
-	MaxPax      int
 	Options     []string
 	ChatID      int64
 	MessageID   int
 	CreatedBy   string
-	StartedAt   *time.Time // Using pointer to allow NULL values
+	StartedAt   *time.Time
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -43,8 +41,6 @@ func (dao *EventDAO) Initialize() error {
 		`CREATE TABLE IF NOT EXISTS events (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			description TEXT,
-			desired_pax INTEGER,
-			max_pax INTEGER,
 			options TEXT,
 			chat_id INTEGER,
 			message_id INTEGER,
@@ -72,17 +68,15 @@ func (dao *EventDAO) Initialize() error {
 }
 
 func (dao *EventDAO) GetEventByID(eventID int64) (*Event, error) {
-	query := `SELECT id, description, desired_pax, max_pax, options, chat_id, message_id, created_by,
+	query := `SELECT id, description, options, chat_id, message_id, created_by,
 		started_at, created_at, updated_at FROM events WHERE id = ?`
 	row := dao.db.QueryRow(query, eventID)
 	event := &Event{}
-	var optionsStr string // Temporary variable to hold the options string
+	var optionsStr string
 	err := row.Scan(
 		&event.ID,
 		&event.Description,
-		&event.DesiredPax,
-		&event.MaxPax,
-		&optionsStr, // Scan into string first
+		&optionsStr,
 		&event.ChatID,
 		&event.MessageID,
 		&event.CreatedBy,
@@ -93,7 +87,6 @@ func (dao *EventDAO) GetEventByID(eventID int64) (*Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Convert string back to slice
 	if optionsStr != "" {
 		event.Options = strings.Split(optionsStr, ";")
 	}
@@ -101,20 +94,17 @@ func (dao *EventDAO) GetEventByID(eventID int64) (*Event, error) {
 }
 
 func (dao *EventDAO) SaveEvent(event *Event) (int64, error) {
-	// Convert options slice to string
 	optionsStr := strings.Join(event.Options, ";")
 
 	query := `INSERT INTO events (
-		description, desired_pax, max_pax, options, chat_id, message_id, created_by,
+		description, options, chat_id, message_id, created_by,
 		started_at, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+	) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
 
 	result, err := dao.db.Exec(
 		query,
 		event.Description,
-		event.DesiredPax,
-		event.MaxPax,
-		optionsStr, // Use the converted string instead of slice
+		optionsStr,
 		event.ChatID,
 		event.MessageID,
 		event.CreatedBy,
@@ -123,26 +113,19 @@ func (dao *EventDAO) SaveEvent(event *Event) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	id, err := result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-	return id, nil
+	return result.LastInsertId()
 }
 
 func (dao *EventDAO) UpdateEvent(event *Event) error {
-	// Convert options slice to string
 	optionsStr := strings.Join(event.Options, ";")
 
 	query := `UPDATE events 
-		SET description = ?, desired_pax = ?, max_pax = ?, options = ?, chat_id = ?, message_id = ?, created_by = ?,
+		SET description = ?, options = ?, chat_id = ?, message_id = ?, created_by = ?,
 		started_at = ?, updated_at = CURRENT_TIMESTAMP 
 		WHERE id = ?`
 	_, err := dao.db.Exec(query,
 		event.Description,
-		event.DesiredPax,
-		event.MaxPax,
-		optionsStr, // Use the converted string instead of slice
+		optionsStr,
 		event.ChatID,
 		event.MessageID,
 		event.CreatedBy,
@@ -161,17 +144,15 @@ func (dao *EventDAO) UpdateMessageID(eventID int64, messageID int) error {
 }
 
 func (dao *EventDAO) GetEventByMessageID(messageID int) (*Event, error) {
-	query := `SELECT id, description, desired_pax, max_pax, options, chat_id, message_id, created_by,
+	query := `SELECT id, description, options, chat_id, message_id, created_by,
 		started_at, created_at, updated_at FROM events WHERE message_id = ?`
 	row := dao.db.QueryRow(query, messageID)
 	event := &Event{}
-	var optionsStr string // Temporary variable to hold the options string
+	var optionsStr string
 	err := row.Scan(
 		&event.ID,
 		&event.Description,
-		&event.DesiredPax,
-		&event.MaxPax,
-		&optionsStr, // Scan into string first
+		&optionsStr,
 		&event.ChatID,
 		&event.MessageID,
 		&event.CreatedBy,
@@ -182,7 +163,6 @@ func (dao *EventDAO) GetEventByMessageID(messageID int) (*Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Convert string back to slice
 	if optionsStr != "" {
 		event.Options = strings.Split(optionsStr, ";")
 	}

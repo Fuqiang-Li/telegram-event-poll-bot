@@ -96,9 +96,7 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 			ChatID: chatID,
 			Text: `Got it! You will be able to set the following settings in sequence. 
 			1. Start Time
-			2. Desired Pax
-			3. Max Pax
-			4. Options (default: Support)
+			2. Options (default: Support)
 			At any step, you can enter 'S' to skip all the remaining settings.
 
 			Now, please enter the start time. For example, ` + timeFormat + ". Enter 0 to skip.",
@@ -119,41 +117,9 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 		userState.Step = 3
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: chatID,
-			Text:   "Great! Now, please enter the desired number of participants (Desired Pax). Enter 0 to skip.",
-		})
-	case 3:
-		// Collect desired pax
-		desiredPax, err := strconv.Atoi(update.Message.Text)
-		if err != nil {
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID: chatID,
-				Text:   "Invalid input. Please enter a valid number for Desired Pax. Enter 0 to skip.",
-			})
-			return true
-		}
-		userState.CurrentData.DesiredPax = desiredPax
-		userState.Step = 4
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   "Now, please enter the maximum number of participants (Max Pax). Enter 0 to skip.",
-		})
-	case 4:
-		// Collect max pax
-		maxPax, err := strconv.Atoi(update.Message.Text)
-		if err != nil {
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID: chatID,
-				Text:   "Invalid input. Please enter a valid number for max pax. Enter 0 to skip.",
-			})
-			return true
-		}
-		userState.CurrentData.MaxPax = maxPax
-		userState.Step = 5
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
 			Text:   "Now, please enter the options, separated by semicolon and should not contain underscore (e.g. Option 1;Option 2). Enter 0 to skip (default: Support).",
 		})
-	case 5:
+	case 3:
 		// Collect options
 		if update.Message.Text != "0" {
 			if strings.Contains(update.Message.Text, "_") {
