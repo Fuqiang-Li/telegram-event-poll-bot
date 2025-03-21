@@ -185,7 +185,7 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    chatID,
-		Text:      event.String(),
+		Text:      event.String() + "\n\n" + "You can now send it to the group by copy pasting the following command sent as a separate message.",
 		ParseMode: "Markdown",
 	})
 
@@ -194,11 +194,9 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 	if err != nil {
 		log.Println("error saving event", err)
 	}
-	log.Println("event id", eventID)
-
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: chatID,
-		Text:   "Event created successfully! You can now send it to the group with command \"/send@PeakEventPollBot " + strconv.FormatInt(eventID, 10) + "\"",
+		Text:   "/send@PeakEventPollBot " + strconv.FormatInt(eventID, 10),
 	})
 	// Clean up user state
 	delete(userStates, chatID)
