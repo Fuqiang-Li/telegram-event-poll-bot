@@ -4,6 +4,7 @@ go 1.23.4
 
 require (
 	github.com/go-telegram/bot v1.11.1
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	modernc.org/sqlite v1.36.1
 )
 

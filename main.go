@@ -9,26 +9,20 @@ import (
 	"os/signal"
 
 	"github.com/go-telegram/bot"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
-	// setup logging
-	f, err := os.OpenFile("app.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
-	}
-	defer f.Close()
-	wrt := io.MultiWriter(os.Stdout, f)
-	log.SetOutput(wrt)
-
-	defer log.Println("Stopping app")
 	// load config
 	config, err := loadConfig("config.json")
 	if err != nil {
 		panic(err)
 	}
+	// setup logging
+	setupLogging(config.Logger)
+	defer log.Println("Stopping app")
 
 	// Add database connection
 	db, err := sql.Open("sqlite", "events.db")
@@ -61,4 +55,19 @@ func main() {
 
 	log.Println("Starting App")
 	b.Start(ctx)
+}
+
+func setupLogging(logger LogConfig) {
+	// Configure the lumberjack logger
+	logFile := &lumberjack.Logger{
+		Filename:   logger.Filename,   // Log file path
+		MaxSize:    logger.MaxSize,    // Max megabytes before rotation
+		MaxBackups: logger.MaxBackups, // Max number of old log files to keep
+		MaxAge:     logger.MaxAge,     // Max number of days to retain logs
+		Compress:   logger.Compress,   // Compress the old logs
+	}
+
+	// Optionally, also log to console
+	multiWriter := io.MultiWriter(os.Stdout, logFile)
+	log.SetOutput(multiWriter)
 }
