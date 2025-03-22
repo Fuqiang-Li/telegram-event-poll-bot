@@ -4,7 +4,7 @@
 `telegram-event-poll-bot` is a Telegram bot designed to create and manage event polls. Users can create events, set various parameters, and allow participants to vote on different options.
 
 ## Features
-- Create events with descriptions, start times, desired and maximum participants, and options.
+- Create events with descriptions, start times, and options.
 - Send event polls to groups.
 - Collect and display votes from participants.
 
