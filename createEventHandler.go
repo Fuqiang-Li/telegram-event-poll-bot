@@ -18,7 +18,7 @@ type UserState struct {
 }
 
 // Map to track state for each user
-var userStates = make(map[int64]*UserState)
+var userStates = make(map[string]*UserState)
 
 type CreateEventHandler struct {
 	eventDao *EventDAO
@@ -39,20 +39,22 @@ func (h *CreateEventHandler) handleSend(ctx context.Context, b *bot.Bot, update 
 		log.Println("error getting event", err)
 		return
 	}
+	chatID := update.Message.Chat.ID
+	msgThreadID := update.Message.MessageThreadID
 	if event.CreatedBy != getUserFullName(update.Message.From) {
 		log.Println("event not created by user", getUserFullName(update.Message.From))
 		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: update.Message.Chat.ID,
-			Text:   "You are not authorized to send this event",
+			ChatID:          chatID,
+			MessageThreadID: msgThreadID,
+			Text:            "You are not authorized to send this event",
 		})
 		return
 	}
-	chatID := update.Message.Chat.ID
 	users, err := h.eventDao.GetEventUsers(eventID)
 	if err != nil {
 		log.Println("error getting event users", err)
 	}
-	eventMsgID := sendEventPoll(ctx, b, chatID, update.Message.MessageThreadID, *event, users)
+	eventMsgID := sendEventPoll(ctx, b, chatID, msgThreadID, *event, users)
 	event.updateDetails(chatID, eventMsgID, event.CreatedBy)
 	err = h.eventDao.UpdateEvent(event)
 	if err != nil {
@@ -63,21 +65,26 @@ func (h *CreateEventHandler) handleSend(ctx context.Context, b *bot.Bot, update 
 
 func (h *CreateEventHandler) handleStart(ctx context.Context, b *bot.Bot, update *models.Update) {
 	chatID := update.Message.Chat.ID
+	msgThreadID := update.Message.MessageThreadID
+	userStateKey := getUserStateKey(chatID, msgThreadID, update.Message.From)
 	// Initialize user state
-	userStates[chatID] = &UserState{Step: 1, CurrentData: Event{
+	userStates[userStateKey] = &UserState{Step: 1, CurrentData: Event{
 		Options: []string{"Support"},
 	}}
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: chatID,
-		Text:   "Let's start creating the event. First, please enter the description.",
+		ChatID:          chatID,
+		MessageThreadID: msgThreadID,
+		Text:            "Let's start creating the event. First, please enter the description.",
 	})
 }
 
 // Handler for collecting user responses step-by-step for an event
 func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update *models.Update) bool {
 	chatID := update.Message.Chat.ID
-	userState, exists := userStates[chatID]
+	msgThreadID := update.Message.MessageThreadID
+	userStateKey := getUserStateKey(chatID, msgThreadID, update.Message.From)
+	userState, exists := userStates[userStateKey]
 
 	if !exists {
 		return false
@@ -93,7 +100,8 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 		userState.CurrentData.Description = update.Message.Text
 		userState.Step = 2
 		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
+			ChatID:          chatID,
+			MessageThreadID: msgThreadID,
 			Text: `Got it! You will be able to set the following settings in sequence. 
 			1. Start Time
 			2. Options (default: Support)
@@ -107,8 +115,9 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 			startTime, err := time.Parse(timeFormat, update.Message.Text)
 			if err != nil {
 				b.SendMessage(ctx, &bot.SendMessageParams{
-					ChatID: chatID,
-					Text:   "Invalid input. Please enter a valid start time in the format YYYY-MM-DD HH:MM. For example, " + timeFormat,
+					ChatID:          chatID,
+					MessageThreadID: msgThreadID,
+					Text:            "Invalid input. Please enter a valid start time in the format YYYY-MM-DD HH:MM. For example, " + timeFormat,
 				})
 				return true
 			}
@@ -116,16 +125,18 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 		}
 		userState.Step = 3
 		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   "Now, please enter the options, separated by semicolon and should not contain underscore (e.g. Option 1;Option 2). Enter 0 to skip (default: Support).",
+			ChatID:          chatID,
+			MessageThreadID: msgThreadID,
+			Text:            "Now, please enter the options, separated by semicolon and should not contain underscore (e.g. Option 1;Option 2). Enter 0 to skip (default: Support).",
 		})
 	case 3:
 		// Collect options
 		if update.Message.Text != "0" {
 			if strings.Contains(update.Message.Text, "_") {
 				b.SendMessage(ctx, &bot.SendMessageParams{
-					ChatID: chatID,
-					Text:   "Invalid input. Please enter the options, separated by semicolon and should not contain underscore (e.g. Option 1;Option 2). Enter 0 to skip (default: Support).",
+					ChatID:          chatID,
+					MessageThreadID: msgThreadID,
+					Text:            "Invalid input. Please enter the options, separated by semicolon and should not contain underscore (e.g. Option 1;Option 2). Enter 0 to skip (default: Support).",
 				})
 				return true
 			}
@@ -150,9 +161,10 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 	event := userState.CurrentData
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    chatID,
-		Text:      event.String() + "\n\n" + "You can now send it to the group by copy pasting the following command sent as a separate message.",
-		ParseMode: "Markdown",
+		ChatID:          chatID,
+		Text:            event.String() + "\n\n" + "You can now send it to the group by copy pasting the following command sent as a separate message.",
+		MessageThreadID: msgThreadID,
+		ParseMode:       "Markdown",
 	})
 
 	event.updateDetails(chatID, 0, getUserFullName(update.Message.From))
@@ -161,10 +173,11 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 		log.Println("error saving event", err)
 	}
 	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: chatID,
-		Text:   "/send@PeakEventPollBot " + strconv.FormatInt(eventID, 10),
+		ChatID:          chatID,
+		MessageThreadID: msgThreadID,
+		Text:            "/send@PeakEventPollBot " + strconv.FormatInt(eventID, 10),
 	})
 	// Clean up user state
-	delete(userStates, chatID)
+	delete(userStates, userStateKey)
 	return true
 }

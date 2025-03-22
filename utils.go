@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/go-telegram/bot/models"
@@ -22,4 +23,8 @@ func getCommandArgument(update *models.Update) string {
 		return ""
 	}
 	return parts[1]
+}
+
+func getUserStateKey(chatID int64, msgThreadID int, user *models.User) string {
+	return fmt.Sprintf("%d:%d:%s", chatID, msgThreadID, user.Username)
 }
