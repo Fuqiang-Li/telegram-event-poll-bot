@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -13,7 +14,17 @@ import (
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+	// setup logging
+	f, err := os.OpenFile("app.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	defer f.Close()
+	wrt := io.MultiWriter(os.Stdout, f)
+	log.SetOutput(wrt)
 
+	defer log.Println("Stopping app")
+	// load config
 	config, err := loadConfig("config.json")
 	if err != nil {
 		panic(err)
@@ -48,6 +59,6 @@ func main() {
 		panic(err)
 	}
 
-	log.Println("Starting bot")
+	log.Println("Starting App")
 	b.Start(ctx)
 }
