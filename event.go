@@ -46,6 +46,8 @@ func (e *EventAndUsers) GetPollMessage() (string, *models.InlineKeyboardMarkup) 
 	for _, option := range e.Options {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
 			{Text: option + callbackSeparator + callbackPostFixIn, CallbackData: strings.Join([]string{callbackPrefix, option, callbackPostFixIn}, callbackSeparator)},
+		})
+		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
 			{Text: option + callbackSeparator + callbackPostFixOut, CallbackData: strings.Join([]string{callbackPrefix, option, callbackPostFixOut}, callbackSeparator)},
 		})
 	}
@@ -64,13 +66,14 @@ func (e *EventAndUsers) GetPollMessage() (string, *models.InlineKeyboardMarkup) 
 	return msg, kb
 }
 
-func sendEventPoll(ctx context.Context, b *bot.Bot, chatID any, event Event, users []EventUser) int {
+func sendEventPoll(ctx context.Context, b *bot.Bot, chatID any, messageThreadID int, event Event, users []EventUser) int {
 	msgText, kb := getPollParams(event, users)
 	msg, err := b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:      chatID,
-		Text:        msgText,
-		ReplyMarkup: kb,
-		ParseMode:   "Markdown",
+		ChatID:          chatID,
+		MessageThreadID: messageThreadID,
+		Text:            msgText,
+		ReplyMarkup:     kb,
+		ParseMode:       "Markdown",
 	})
 	if err != nil {
 		log.Println("Error sending event poll to", chatID, err)

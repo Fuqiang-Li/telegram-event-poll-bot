@@ -52,7 +52,7 @@ func (h *CreateEventHandler) handleSend(ctx context.Context, b *bot.Bot, update 
 	if err != nil {
 		log.Println("error getting event users", err)
 	}
-	eventMsgID := sendEventPoll(ctx, b, chatID, *event, users)
+	eventMsgID := sendEventPoll(ctx, b, chatID, update.Message.MessageThreadID, *event, users)
 	event.updateDetails(chatID, eventMsgID, event.CreatedBy)
 	err = h.eventDao.UpdateEvent(event)
 	if err != nil {
