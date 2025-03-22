@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -22,10 +23,11 @@ var userStates = make(map[string]*UserState)
 
 type CreateEventHandler struct {
 	eventDao *EventDAO
+	botName  string
 }
 
-func NewCreateEventHandler(eventDao *EventDAO) *CreateEventHandler {
-	return &CreateEventHandler{eventDao: eventDao}
+func NewCreateEventHandler(eventDao *EventDAO, botName string) *CreateEventHandler {
+	return &CreateEventHandler{eventDao: eventDao, botName: botName}
 }
 
 func (h *CreateEventHandler) handleSend(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -175,7 +177,7 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:          chatID,
 		MessageThreadID: msgThreadID,
-		Text:            "/send@PeakEventPollBot " + strconv.FormatInt(eventID, 10),
+		Text:            fmt.Sprintf("/send@%s %d", h.botName, eventID),
 	})
 	// Clean up user state
 	delete(userStates, userStateKey)

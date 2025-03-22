@@ -15,6 +15,7 @@ type LogConfig struct {
 
 type Config struct {
 	TelegramToken string    `json:"telegram_token"`
+	BotName       string    `json:"bot_name"`
 	Logger        LogConfig `json:"logger"`
 	// Add other config fields as needed
 }

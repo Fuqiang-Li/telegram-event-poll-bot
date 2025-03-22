@@ -1,6 +1,7 @@
 *.exe
 .vscode
 config.json
+config_dev.json
 *.db
 app.log
 eventpoll

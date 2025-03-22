@@ -16,7 +16,11 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 	// load config
-	config, err := loadConfig("config.json")
+	configFileName := os.Getenv("APP_CONFIG")
+	if configFileName == "" {
+		configFileName = "config.json"
+	}
+	config, err := loadConfig(configFileName)
 	if err != nil {
 		panic(err)
 	}
@@ -38,7 +42,7 @@ func main() {
 		panic(err)
 	}
 
-	createEventHandler := NewCreateEventHandler(eventDAO)
+	createEventHandler := NewCreateEventHandler(eventDAO, config.BotName)
 	eventPollResponseHandler := NewEventPollResponseHandler(eventDAO)
 	defaultHandler := NewDefaultHandler(createEventHandler)
 
