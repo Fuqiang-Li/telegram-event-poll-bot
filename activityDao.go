@@ -16,6 +16,8 @@ const (
 	OrgPEAK = "PEAK"
 )
 
+var AllOrgs = []Org{OrgCC, OrgPEAK}
+
 type Activity struct {
 	ID        int64
 	Name      string
@@ -87,7 +89,12 @@ func (dao *ActivityDAO) Save(activity *Activity) (int64, error) {
 		return 0, err
 	}
 
-	return result.LastInsertId()
+	id, err := result.LastInsertId()
+	if err != nil {
+		return id, err
+	}
+	activity.ID = id
+	return id, nil
 }
 
 // GetByID retrieves an activity by its ID
