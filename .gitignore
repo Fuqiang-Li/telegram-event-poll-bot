@@ -5,3 +5,4 @@ config_dev.json
 *.db
 app.log
 eventpoll
+deploy.sh

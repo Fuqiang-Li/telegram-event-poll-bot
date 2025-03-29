@@ -36,9 +36,9 @@ func (h *ActivityHandler) handleWorkplan(ctx context.Context, b *bot.Bot, update
 			{Text: "View Calendar", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionViewCalendar}, callbackSeparator)},
 		},
 		{
-			{Text: "Add", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionAddEvent}, callbackSeparator)},
-			//{Text: "Update", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionUpdateEvent}, callbackSeparator)},
-			{Text: "Delete", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionDeleteEvent}, callbackSeparator)},
+			{Text: "Add Event", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionAddEvent}, callbackSeparator)},
+			//{Text: "Update Event", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionUpdateEvent}, callbackSeparator)},
+			{Text: "Delete Event", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionDeleteEvent}, callbackSeparator)},
 		},
 	}
 
