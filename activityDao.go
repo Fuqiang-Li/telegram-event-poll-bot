@@ -30,7 +30,7 @@ type Activity struct {
 }
 
 func (a Activity) string() string {
-	return fmt.Sprintf("*%s %s - (%s)(ID:%d):* %s(L), %s(CoL)", a.StartedAt.Format(timeFormat), a.Name, a.Org, a.ID, a.Lead, strings.Join(a.CoLeads, "(CoL),"))
+	return fmt.Sprintf("*%s %s - (Org: %s) - (ID:%d):* %s(L), %s(CoL)", a.StartedAt.Format(timeFormat), a.Name, a.Org, a.ID, a.Lead, strings.Join(a.CoLeads, "(CoL),"))
 }
 
 // ActivityDAO provides data access operations for activities
@@ -210,9 +210,12 @@ func (dao *ActivityDAO) Update(activity *Activity) error {
 }
 
 // Delete removes an activity by its ID
-func (dao *ActivityDAO) Delete(id int64) error {
+func (dao *ActivityDAO) Delete(id int64) (int64, error) {
 	query := `DELETE FROM activities WHERE id = ?`
 
-	_, err := dao.db.Exec(query, id)
-	return err
+	res, err := dao.db.Exec(query, id)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }

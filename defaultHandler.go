@@ -37,5 +37,6 @@ func (h *DefaultHandler) handle(ctx context.Context, b *bot.Bot, update *models.
 		h.activityHandler.handleAddActivitySteps(ctx, b, update, userStateKey, userState)
 	case UPDATE_ACTIVITY:
 	case DELETE_ACTIVITY:
+		h.activityHandler.handleDeleteActivitySteps(ctx, b, update, userStateKey, userState)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -250,6 +251,49 @@ func (h *ActivityHandler) handleAddActivitySteps(ctx context.Context, b *bot.Bot
 		MessageThreadID: msgThreadID,
 		Text:            "Activity details collected successfully!\n" + userState.Activity.string(),
 		ParseMode:       "Markdown",
+	})
+	// Clean up user state
+	delete(userStates, userStateKey)
+}
+
+func (h *ActivityHandler) handleDeleteActivitySteps(ctx context.Context, b *bot.Bot, update *models.Update, userStateKey string, userState *UserState) {
+	chatID := update.Message.Chat.ID
+	msgThreadID := update.Message.MessageThreadID
+	activityIDStr := strings.TrimSpace(update.Message.Text)
+	activityID, err := strconv.ParseInt(activityIDStr, 10, 64)
+	if err != nil {
+		log.Println("invalid activity ID", activityIDStr, err)
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:          chatID,
+			MessageThreadID: msgThreadID,
+			Text:            "Invalid activity ID! Please enter a valid number.",
+		})
+		return
+	}
+
+	affectedRows, err := h.activityDAO.Delete(activityID)
+	if err != nil {
+		log.Println("failed to delete activity", activityID, err)
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:          chatID,
+			MessageThreadID: msgThreadID,
+			Text:            "Failed to delete activity! Please try again.",
+		})
+		return
+	}
+	if affectedRows == 0 {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:          chatID,
+			MessageThreadID: msgThreadID,
+			Text:            "No activity found with the given ID! Please try again.",
+		})
+		return
+	}
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:          chatID,
+		MessageThreadID: msgThreadID,
+		Text:            "Activity deleted successfully!",
 	})
 	// Clean up user state
 	delete(userStates, userStateKey)
