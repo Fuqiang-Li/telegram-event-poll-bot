@@ -77,15 +77,9 @@ func (h *CreateEventHandler) handleStart(ctx context.Context, b *bot.Bot, update
 }
 
 // Handler for collecting user responses step-by-step for an event
-func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update *models.Update) bool {
+func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update *models.Update, userStateKey string, userState *UserState) bool {
 	chatID := update.Message.Chat.ID
 	msgThreadID := update.Message.MessageThreadID
-	userStateKey := getUserStateKey(chatID, msgThreadID, update.Message.From)
-	userState, exists := userStates[userStateKey]
-
-	if !exists {
-		return false
-	}
 
 	if strings.ToUpper(update.Message.Text) == "S" {
 		userState.Step = -1
