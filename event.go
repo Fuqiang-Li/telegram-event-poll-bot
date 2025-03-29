@@ -12,6 +12,7 @@ import (
 
 const (
 	timeFormat          = "2006-01-02 15:04"
+	displayTimeFormat   = "Mon, 2006-01-02 15:04"
 	eventCallbackPrefix = "event"
 	callbackPostFixIn   = "IN"
 	callbackPostFixOut  = "OUT"
@@ -21,7 +22,7 @@ const (
 func (e *Event) String() string {
 	msg := fmt.Sprintf("*Description:* %s", e.Description)
 	if e.StartedAt != nil {
-		msg += fmt.Sprintf("\n*Starts at:* %s", e.StartedAt.Format(timeFormat))
+		msg += fmt.Sprintf("\n*Starts at:* %s", e.StartedAt.Format(displayTimeFormat))
 	} else {
 		msg += "\n*Starts at:* Not set"
 	}
@@ -57,7 +58,7 @@ func (e *EventAndUsers) GetPollMessage() (string, *models.InlineKeyboardMarkup) 
 
 	msg := fmt.Sprintf("*Please cast your votes*\n%s\n", e.Description)
 	if e.StartedAt != nil {
-		msg += fmt.Sprintf("*Start Time:* %s\n", e.StartedAt.Format(timeFormat))
+		msg += fmt.Sprintf("*Start Time:* %s\n", e.StartedAt.Format(displayTimeFormat))
 	}
 	for _, option := range e.Options {
 		msg += fmt.Sprintf("*%s*:\n", option)
