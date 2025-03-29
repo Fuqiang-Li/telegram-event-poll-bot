@@ -42,15 +42,24 @@ func main() {
 		panic(err)
 	}
 
+	activityDAO := NewActivityDAO(db)
+	err = activityDAO.Initialize()
+	if err != nil {
+		panic(err)
+	}
+
 	createEventHandler := NewCreateEventHandler(eventDAO, config.BotName)
 	eventPollResponseHandler := NewEventPollResponseHandler(eventDAO)
-	defaultHandler := NewDefaultHandler(createEventHandler)
+	activityHandler := NewActivityHandler(activityDAO)
+	defaultHandler := NewDefaultHandler(createEventHandler, activityHandler)
 
 	opts := []bot.Option{
 		bot.WithDefaultHandler(defaultHandler.handle),
 		bot.WithMessageTextHandler("/start", bot.MatchTypePrefix, createEventHandler.handleStart),
 		bot.WithMessageTextHandler("/send", bot.MatchTypePrefix, createEventHandler.handleSend),
-		bot.WithCallbackQueryDataHandler("event", bot.MatchTypePrefix, eventPollResponseHandler.handle),
+		bot.WithMessageTextHandler("/workplan", bot.MatchTypePrefix, activityHandler.handleWorkplan),
+		bot.WithCallbackQueryDataHandler(eventCallbackPrefix, bot.MatchTypePrefix, eventPollResponseHandler.handle),
+		bot.WithCallbackQueryDataHandler(workplanCallbackPrefix, bot.MatchTypePrefix, activityHandler.handleWorkplanCallback),
 	}
 	b, err := bot.New(config.TelegramToken, opts...)
 	if err != nil {

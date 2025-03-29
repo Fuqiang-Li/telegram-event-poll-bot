@@ -12,15 +12,6 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
-// State tracking for each user
-type UserState struct {
-	Step        int
-	CurrentData Event
-}
-
-// Map to track state for each user
-var userStates = make(map[string]*UserState)
-
 type CreateEventHandler struct {
 	eventDao *EventDAO
 	botName  string
@@ -70,9 +61,13 @@ func (h *CreateEventHandler) handleStart(ctx context.Context, b *bot.Bot, update
 	msgThreadID := update.Message.MessageThreadID
 	userStateKey := getUserStateKey(chatID, msgThreadID, update.Message.From)
 	// Initialize user state
-	userStates[userStateKey] = &UserState{Step: 1, CurrentData: Event{
-		Options: []string{"Support"},
-	}}
+	userStates[userStateKey] = &UserState{
+		Step:      1,
+		StateType: CREATE_EVENT,
+		Event: Event{
+			Options: []string{"Support"},
+		},
+	}
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:          chatID,
@@ -99,7 +94,7 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 	switch userState.Step {
 	case 1:
 		// Collect description
-		userState.CurrentData.Description = update.Message.Text
+		userState.Event.Description = update.Message.Text
 		userState.Step = 2
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:          chatID,
@@ -123,7 +118,7 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 				})
 				return true
 			}
-			userState.CurrentData.StartedAt = &startTime
+			userState.Event.StartedAt = &startTime
 		}
 		userState.Step = 3
 		b.SendMessage(ctx, &bot.SendMessageParams{
@@ -150,7 +145,7 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 					validOptions = append(validOptions, opt)
 				}
 			}
-			userState.CurrentData.Options = validOptions
+			userState.Event.Options = validOptions
 		}
 
 		userState.Step = -1
@@ -160,7 +155,7 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 		return true
 	}
 	// Event collection complete
-	event := userState.CurrentData
+	event := userState.Event
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:          chatID,

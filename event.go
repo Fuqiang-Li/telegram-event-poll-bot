@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	timeFormat         = "2006-01-02 15:04"
-	callbackPrefix     = "event"
-	callbackPostFixIn  = "IN"
-	callbackPostFixOut = "OUT"
-	callbackSeparator  = "_"
+	timeFormat          = "2006-01-02 15:04"
+	eventCallbackPrefix = "event"
+	callbackPostFixIn   = "IN"
+	callbackPostFixOut  = "OUT"
+	callbackSeparator   = "_"
 )
 
 func (e *Event) String() string {
@@ -45,10 +45,10 @@ func (e *EventAndUsers) GetPollMessage() (string, *models.InlineKeyboardMarkup) 
 	inlineKeyboard := make([][]models.InlineKeyboardButton, 0)
 	for _, option := range e.Options {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: option + callbackSeparator + callbackPostFixIn, CallbackData: strings.Join([]string{callbackPrefix, option, callbackPostFixIn}, callbackSeparator)},
+			{Text: option + callbackSeparator + callbackPostFixIn, CallbackData: strings.Join([]string{eventCallbackPrefix, option, callbackPostFixIn}, callbackSeparator)},
 		})
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: option + callbackSeparator + callbackPostFixOut, CallbackData: strings.Join([]string{callbackPrefix, option, callbackPostFixOut}, callbackSeparator)},
+			{Text: option + callbackSeparator + callbackPostFixOut, CallbackData: strings.Join([]string{eventCallbackPrefix, option, callbackPostFixOut}, callbackSeparator)},
 		})
 	}
 	kb := &models.InlineKeyboardMarkup{

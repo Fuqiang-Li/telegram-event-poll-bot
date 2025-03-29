@@ -19,7 +19,7 @@ func NewEventPollResponseHandler(eventDao *EventDAO) *EventPollResponseHandler {
 
 func (h *EventPollResponseHandler) handle(ctx context.Context, b *bot.Bot, update *models.Update) {
 	messageID := update.CallbackQuery.Message.Message.ID
-	log.Println("callback for message", messageID, "from", update.CallbackQuery.From.FirstName, update.CallbackQuery.From.LastName)
+	log.Println("event callback for message", messageID, "from", update.CallbackQuery.From.FirstName, update.CallbackQuery.From.LastName)
 	event, err := h.eventDao.GetEventByMessageID(messageID)
 	if err != nil || event == nil {
 		log.Println("unknow messageID", messageID, err)
@@ -36,7 +36,7 @@ func (h *EventPollResponseHandler) handle(ctx context.Context, b *bot.Bot, updat
 	})
 	user := getUserFullName(&update.CallbackQuery.From)
 	optionInputs := strings.Split(update.CallbackQuery.Data, callbackSeparator)
-	if len(optionInputs) < 2 {
+	if len(optionInputs) < 3 {
 		log.Println("invalid option callback", update.CallbackQuery.Data)
 		return
 	}
