@@ -87,10 +87,7 @@ func (h *ActivityHandler) handleWorkplanCallback(ctx context.Context, b *bot.Bot
 			log.Println("error retrieving current month activities", err)
 			return
 		}
-		messageText := "Current Month Activities:\n"
-		for _, activity := range activities {
-			messageText += activity.string() + "\n"
-		}
+		messageText := "Current Month Activities:\n" + getActivitiesMessage(activities)
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:          chatID,
 			MessageThreadID: msgThreadID,
@@ -107,10 +104,7 @@ func (h *ActivityHandler) handleWorkplanCallback(ctx context.Context, b *bot.Bot
 			log.Println("error retrieving activities for calendar", err)
 			return
 		}
-		calendarText := "Activity Calendar:\n"
-		for _, activity := range activities {
-			calendarText += activity.string() + "\n"
-		}
+		calendarText := "Activity Calendar:\n" + getActivitiesMessage(activities)
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:          chatID,
 			MessageThreadID: msgThreadID,
@@ -297,4 +291,12 @@ func (h *ActivityHandler) handleDeleteActivitySteps(ctx context.Context, b *bot.
 	})
 	// Clean up user state
 	delete(userStates, userStateKey)
+}
+
+func getActivitiesMessage(activities []Activity) string {
+	str := ""
+	for _, activity := range activities {
+		str += activity.string() + "\n\n"
+	}
+	return str
 }
