@@ -30,7 +30,7 @@ type Activity struct {
 }
 
 func (a Activity) string() string {
-	return fmt.Sprintf("*%s %s - (Org: %s) - (ID:%d):* %s(L), %s(CoL)", a.StartedAt.Format(displayTimeFormat), a.Name, a.Org, a.ID, a.Lead, strings.Join(a.CoLeads, "(CoL),"))
+	return fmt.Sprintf("*%s %s - (Org: %s) - (ID:%d):* %s(L), %s(CoL)", a.StartedAt.Format(displayTimeFormat), a.Name, a.Org, a.ID, a.Lead, strings.Join(a.CoLeads, "(CoL), "))
 }
 
 // ActivityDAO provides data access operations for activities

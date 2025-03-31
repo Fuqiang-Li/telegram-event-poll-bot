@@ -295,7 +295,15 @@ func (h *ActivityHandler) handleDeleteActivitySteps(ctx context.Context, b *bot.
 
 func getActivitiesMessage(activities []Activity) string {
 	str := ""
+	var year int
+	var month time.Month
 	for _, activity := range activities {
+		y, m, _ := activity.StartedAt.Date()
+		if y != year || m != month {
+			year = y
+			month = m
+			str += fmt.Sprintf("*<<%v %d>>*\n\n", month, year)
+		}
 		str += activity.string() + "\n\n"
 	}
 	return str
