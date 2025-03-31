@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -26,7 +27,16 @@ func (h *EventPollResponseHandler) handle(ctx context.Context, b *bot.Bot, updat
 		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 			CallbackQueryID: update.CallbackQuery.ID,
 			ShowAlert:       true,
-			Text:            "Likely out-dated event. No more modification.",
+			Text:            "Event not found. Potentially the event was sent to somewhere else. No more modification here.",
+		})
+		return
+	}
+	if event.StartedAt != nil && event.StartedAt.Before(time.Now()) {
+		log.Println("event already started", messageID, event.Description, event.StartedAt)
+		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+			CallbackQueryID: update.CallbackQuery.ID,
+			ShowAlert:       true,
+			Text:            "Event already started. No more modification here.",
 		})
 		return
 	}
