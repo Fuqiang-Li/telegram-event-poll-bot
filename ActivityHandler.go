@@ -54,7 +54,6 @@ func (h *ActivityHandler) handleWorkplan(ctx context.Context, b *bot.Bot, update
 		MessageThreadID: msgThreadID,
 		Text:            messageText,
 		ReplyMarkup:     kb,
-		ParseMode:       "Markdown",
 	})
 }
 
@@ -92,7 +91,7 @@ func (h *ActivityHandler) handleWorkplanCallback(ctx context.Context, b *bot.Bot
 			ChatID:          chatID,
 			MessageThreadID: msgThreadID,
 			Text:            messageText,
-			ParseMode:       "Markdown",
+			ParseMode:       "HTML",
 		})
 
 	case workplanOptionViewCalendar:
@@ -109,7 +108,7 @@ func (h *ActivityHandler) handleWorkplanCallback(ctx context.Context, b *bot.Bot
 			ChatID:          chatID,
 			MessageThreadID: msgThreadID,
 			Text:            calendarText,
-			ParseMode:       "Markdown",
+			ParseMode:       "HTML",
 		})
 
 	case workplanOptionAddEvent:
@@ -244,7 +243,7 @@ func (h *ActivityHandler) handleAddActivitySteps(ctx context.Context, b *bot.Bot
 		ChatID:          chatID,
 		MessageThreadID: msgThreadID,
 		Text:            "Activity details collected successfully!\n" + userState.Activity.string(),
-		ParseMode:       "Markdown",
+		ParseMode:       "HTML",
 	})
 	// Clean up user state
 	delete(userStates, userStateKey)
@@ -302,7 +301,7 @@ func getActivitiesMessage(activities []Activity) string {
 		if y != year || m != month {
 			year = y
 			month = m
-			str += fmt.Sprintf("*<<%v %d>>*\n\n", month, year)
+			str += fmt.Sprintf("<b><u>%v %d</u></b>\n\n", month, year)
 		}
 		str += activity.string() + "\n\n"
 	}
