@@ -31,8 +31,8 @@ func (h *EventPollResponseHandler) handle(ctx context.Context, b *bot.Bot, updat
 		})
 		return
 	}
-	if event.StartedAt != nil && event.StartedAt.Before(time.Now()) {
-		log.Println("event already started", messageID, event.Description, event.StartedAt)
+	if event.StartedAt != nil && addLocalTimezone(*event.StartedAt).Before(time.Now()) {
+		log.Println("event already started", event.Description, event.StartedAt)
 		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 			CallbackQueryID: update.CallbackQuery.ID,
 			ShowAlert:       true,

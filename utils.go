@@ -30,10 +30,15 @@ func getUserStateKey(chatID int64, msgThreadID int, user *models.User) string {
 	return fmt.Sprintf("%d:%d:%s", chatID, msgThreadID, user.Username)
 }
 
-func getCurrentMonthStartInUTC() time.Time {
+func getCurrentMonthInUTC() time.Time {
 	// for the ease of user interaction, user input time is just stored as UTC while user has the expectation of in local time
 	// hence, we would need to convert to UTC while still preserving the local time's month
 	now := time.Now().In(AppConfig.Timezone)
 	// Convert to UTC while preserving the local time's month
 	return time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+}
+
+// add app local timezone to the event but keep the clock unchanged
+func addLocalTimezone(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), AppConfig.Timezone)
 }

@@ -88,13 +88,13 @@ func (h *ActivityHandler) handleWorkplanCallback(ctx context.Context, b *bot.Bot
 	switch options[1] {
 	case workplanOptionViewCurrentMonth:
 		// Logic to view current month's activities
-		startTime := getCurrentMonthStartInUTC()
+		startTime := getCurrentMonthInUTC()
 		endTime := startTime.AddDate(0, 1, 0).Add(-time.Nanosecond)
 		h.sendActivitiesForPeriod(ctx, b, chatID, msgThreadID, startTime, endTime)
 
 	case workplanOptionViewByMonth:
 		// Logic to view activities by month
-		startTime := getCurrentMonthStartInUTC()
+		startTime := getCurrentMonthInUTC()
 		var inlineButtons [][]models.InlineKeyboardButton
 		for i := -2; i < 16; i++ {
 			month := startTime.AddDate(0, i, 0)
@@ -373,7 +373,7 @@ func (h *ActivityHandler) handleDeleteActivitySteps(ctx context.Context, b *bot.
 // sendAllActivities from past 2 months, total 18 months
 func (h *ActivityHandler) sendAllActivities(ctx context.Context, b *bot.Bot, chatID int64, msgThreadID int) {
 	// Logic to view calendar of activities from past 2 months, total 18 months
-	startTime := getCurrentMonthStartInUTC().AddDate(0, -2, 0)
+	startTime := getCurrentMonthInUTC().AddDate(0, -2, 0)
 	endTime := startTime.AddDate(0, 18, 0).Add(-time.Nanosecond)
 	h.sendActivitiesForPeriod(ctx, b, chatID, msgThreadID, startTime, endTime)
 }

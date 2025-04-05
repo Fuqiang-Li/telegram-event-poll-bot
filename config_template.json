@@ -1,6 +1,7 @@
 {
     "telegram_token": "",
     "bot_name": "",
+    "timezone": "",
     "logger": {
         "filename": "app.log",
         "maxsize": 10,

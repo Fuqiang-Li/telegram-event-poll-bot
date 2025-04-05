@@ -39,8 +39,10 @@ func loadConfig(filename string) (*Config, error) {
 	tz, err := time.LoadLocation(config.TimezoneStr)
 	if err != nil {
 		log.Println("err loading time location", config.TimezoneStr, err)
+		tz = time.UTC
 	}
 	config.Timezone = tz
+	log.Println("bot name", config.BotName, "timezone", config.Timezone)
 	AppConfig = &config
 	return AppConfig, nil
 }
