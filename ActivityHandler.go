@@ -13,12 +13,16 @@ import (
 )
 
 const (
-	workplanCallbackPrefix         = "workplan"
-	workplanOptionViewCurrentMonth = "viewCurrentMonth"
-	workplanOptionViewCalendar     = "viewCalendar"
-	workplanOptionAddEvent         = "addEvent"
-	workplanOptionUpdateEvent      = "updateEvent"
-	workplanOptionDeleteEvent      = "deleteEvent"
+	workplanCallbackPrefix                = "workplan"
+	workplanOptionViewCurrentMonth        = "viewCurrentMonth"
+	workplanOptionViewByMonth             = "viewByMonth"
+	workplanOptionViewCalendar            = "viewCalendar"
+	workplanOptionAddEvent                = "addEvent"
+	workplanOptionUpdateEvent             = "updateEvent"
+	workplanOptionDeleteEvent             = "deleteEvent"
+	workplanViewByMonthCallbackPrefix     = "wpViewByMonth"
+	workplanViewByMonthCallbackOptionAll  = "all"
+	workplanViewByMonthCallbackOptionBack = "back"
 )
 
 type ActivityHandler struct {
@@ -30,10 +34,23 @@ func NewActivityHandler(activityDao *ActivityDAO) *ActivityHandler {
 }
 
 func (h *ActivityHandler) handleWorkplan(ctx context.Context, b *bot.Bot, update *models.Update) {
+	chatID := update.Message.Chat.ID
+	msgThreadID := update.Message.MessageThreadID
+	kb, msg := h.getWorkplanMenu()
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:          chatID,
+		MessageThreadID: msgThreadID,
+		Text:            msg,
+		ReplyMarkup:     kb,
+	})
+}
+
+func (h *ActivityHandler) getWorkplanMenu() (models.InlineKeyboardMarkup, string) {
 	inlineKeyboard := [][]models.InlineKeyboardButton{
 		{
-			{Text: "View Current Month", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionViewCurrentMonth}, callbackSeparator)},
-			{Text: "View Calendar", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionViewCalendar}, callbackSeparator)},
+			{Text: "View This Mo", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionViewCurrentMonth}, callbackSeparator)},
+			{Text: "View By Mo", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionViewByMonth}, callbackSeparator)},
+			{Text: "View All", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionViewCalendar}, callbackSeparator)},
 		},
 		{
 			{Text: "Add Event", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionAddEvent}, callbackSeparator)},
@@ -42,19 +59,11 @@ func (h *ActivityHandler) handleWorkplan(ctx context.Context, b *bot.Bot, update
 		},
 	}
 
-	kb := &models.InlineKeyboardMarkup{
+	kb := models.InlineKeyboardMarkup{
 		InlineKeyboard: inlineKeyboard,
 	}
-
 	messageText := "Please choose an option:"
-	chatID := update.Message.Chat.ID
-	msgThreadID := update.Message.MessageThreadID
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:          chatID,
-		MessageThreadID: msgThreadID,
-		Text:            messageText,
-		ReplyMarkup:     kb,
-	})
+	return kb, messageText
 }
 
 func (h *ActivityHandler) handleWorkplanCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -79,37 +88,55 @@ func (h *ActivityHandler) handleWorkplanCallback(ctx context.Context, b *bot.Bot
 	switch options[1] {
 	case workplanOptionViewCurrentMonth:
 		// Logic to view current month's activities
-		startTime := time.Now().Truncate(24*time.Hour).AddDate(0, 0, -time.Now().Day()+1) // First day of the current month
+		startTime := getCurrentMonthStartInUTC()
 		endTime := startTime.AddDate(0, 1, 0).Add(-time.Nanosecond)
-		activities, err := h.activityDAO.GetByDuration(startTime, endTime)
-		if err != nil {
-			log.Println("error retrieving current month activities", err)
-			return
+		h.sendActivitiesForPeriod(ctx, b, chatID, msgThreadID, startTime, endTime)
+
+	case workplanOptionViewByMonth:
+		// Logic to view activities by month
+		startTime := getCurrentMonthStartInUTC()
+		var inlineButtons [][]models.InlineKeyboardButton
+		for i := -2; i < 16; i++ {
+			month := startTime.AddDate(0, i, 0)
+			button := models.InlineKeyboardButton{
+				Text:         month.Format(monthFormat),
+				CallbackData: strings.Join([]string{workplanViewByMonthCallbackPrefix, month.Format(monthFormat)}, callbackSeparator),
+			}
+			if len(inlineButtons) == 0 || len(inlineButtons[len(inlineButtons)-1]) == 4 {
+				inlineButtons = append(inlineButtons, []models.InlineKeyboardButton{button})
+			} else {
+				inlineButtons[len(inlineButtons)-1] = append(inlineButtons[len(inlineButtons)-1], button)
+			}
 		}
-		messageText := "Current Month Activities:\n" + getActivitiesMessage(activities)
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:          chatID,
-			MessageThreadID: msgThreadID,
-			Text:            messageText,
-			ParseMode:       "HTML",
+		// add special buttons
+		button := models.InlineKeyboardButton{
+			Text:         "All",
+			CallbackData: strings.Join([]string{workplanViewByMonthCallbackPrefix, workplanViewByMonthCallbackOptionAll}, callbackSeparator),
+		}
+		inlineButtons[len(inlineButtons)-1] = append(inlineButtons[len(inlineButtons)-1], button)
+		button = models.InlineKeyboardButton{
+			Text:         "<< back",
+			CallbackData: strings.Join([]string{workplanViewByMonthCallbackPrefix, workplanViewByMonthCallbackOptionBack}, callbackSeparator),
+		}
+		inlineButtons[len(inlineButtons)-1] = append(inlineButtons[len(inlineButtons)-1], button)
+
+		kb := &models.InlineKeyboardMarkup{
+			InlineKeyboard: inlineButtons,
+		}
+
+		messageText := "Select a month to view activities:"
+		_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:      chatID,
+			MessageID:   messageID,
+			Text:        messageText,
+			ReplyMarkup: kb,
 		})
+		if err != nil {
+			log.Println("error editing message", err)
+		}
 
 	case workplanOptionViewCalendar:
-		// Logic to view calendar of activities from past 2 months to the next 18 months
-		startTime := time.Now().Truncate(24*time.Hour).AddDate(0, -2, -time.Now().Day()+1)
-		endTime := startTime.AddDate(0, 18, 0).Add(-time.Nanosecond)
-		activities, err := h.activityDAO.GetByDuration(startTime, endTime)
-		if err != nil {
-			log.Println("error retrieving activities for calendar", err)
-			return
-		}
-		calendarText := "Activity Calendar:\n" + getActivitiesMessage(activities)
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:          chatID,
-			MessageThreadID: msgThreadID,
-			Text:            calendarText,
-			ParseMode:       "HTML",
-		})
+		h.sendAllActivities(ctx, b, chatID, msgThreadID)
 
 	case workplanOptionAddEvent:
 		// Logic to add a new event
@@ -140,6 +167,57 @@ func (h *ActivityHandler) handleWorkplanCallback(ctx context.Context, b *bot.Bot
 			Text:            "Please provide the ID of the activity you want to delete.",
 		})
 	}
+}
+
+func (h *ActivityHandler) handleViewByMonth(ctx context.Context, b *bot.Bot, update *models.Update) {
+	messageID := update.CallbackQuery.Message.Message.ID
+	log.Println("workpan callback for message", messageID, "from", getUserFullName(&update.CallbackQuery.From), "Data", update.CallbackQuery.Data)
+
+	options := strings.Split(update.CallbackQuery.Data, callbackSeparator)
+	if len(options) < 2 {
+		log.Println("invalid option callback", update.CallbackQuery.Data)
+		return
+	}
+
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	msgThreadID := update.CallbackQuery.Message.Message.MessageThreadID
+
+	switch options[1] {
+	case workplanViewByMonthCallbackOptionAll:
+		h.sendAllActivities(ctx, b, chatID, msgThreadID)
+		return
+	case workplanViewByMonthCallbackOptionBack:
+		kb, msg := h.getWorkplanMenu()
+		_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:      chatID,
+			MessageID:   messageID,
+			Text:        msg,
+			ReplyMarkup: kb,
+		})
+		if err != nil {
+			log.Println("error editing message", err)
+		}
+		return
+	}
+
+	month, err := time.Parse(monthFormat, options[1])
+	if err != nil {
+		log.Println("error parsing month", options[1], err)
+		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+			CallbackQueryID: update.CallbackQuery.ID,
+			Text:            "cannot get the month",
+			ShowAlert:       true,
+		})
+		return
+	}
+
+	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+		ShowAlert:       false,
+	})
+
+	endTime := month.AddDate(0, 1, 0).Add(-time.Nanosecond)
+	h.sendActivitiesForPeriod(ctx, b, chatID, msgThreadID, month, endTime)
 }
 
 func (h *ActivityHandler) handleAddActivitySteps(ctx context.Context, b *bot.Bot, update *models.Update, userStateKey string, userState *UserState) {
@@ -292,7 +370,40 @@ func (h *ActivityHandler) handleDeleteActivitySteps(ctx context.Context, b *bot.
 	delete(userStates, userStateKey)
 }
 
+// sendAllActivities from past 2 months, total 18 months
+func (h *ActivityHandler) sendAllActivities(ctx context.Context, b *bot.Bot, chatID int64, msgThreadID int) {
+	// Logic to view calendar of activities from past 2 months, total 18 months
+	startTime := getCurrentMonthStartInUTC().AddDate(0, -2, 0)
+	endTime := startTime.AddDate(0, 18, 0).Add(-time.Nanosecond)
+	h.sendActivitiesForPeriod(ctx, b, chatID, msgThreadID, startTime, endTime)
+}
+
+func (h *ActivityHandler) sendActivitiesForPeriod(ctx context.Context, b *bot.Bot, chatID int64, msgThreadID int, start, end time.Time) {
+	activities, err := h.activityDAO.GetByDuration(start, end)
+	if err != nil {
+		log.Println("error retrieving activities", start, end, err)
+		return
+	}
+	startMonth := start.Format(monthFormat)
+	endMonth := end.Format(monthFormat)
+	periodStr := startMonth
+	if startMonth != endMonth {
+		periodStr += " - " + endMonth
+	}
+
+	messageText := fmt.Sprintf("Activities (%s):\n%s", periodStr, getActivitiesMessage(activities))
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:          chatID,
+		MessageThreadID: msgThreadID,
+		Text:            messageText,
+		ParseMode:       "HTML",
+	})
+}
+
 func getActivitiesMessage(activities []Activity) string {
+	if len(activities) == 0 {
+		return "no activities found."
+	}
 	str := ""
 	var year int
 	var month time.Month

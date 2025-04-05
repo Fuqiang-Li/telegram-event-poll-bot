@@ -60,6 +60,7 @@ func main() {
 		bot.WithMessageTextHandler("/workplan", bot.MatchTypePrefix, activityHandler.handleWorkplan),
 		bot.WithCallbackQueryDataHandler(eventCallbackPrefix, bot.MatchTypePrefix, eventPollResponseHandler.handle),
 		bot.WithCallbackQueryDataHandler(workplanCallbackPrefix, bot.MatchTypePrefix, activityHandler.handleWorkplanCallback),
+		bot.WithCallbackQueryDataHandler(workplanViewByMonthCallbackPrefix, bot.MatchTypePrefix, activityHandler.handleViewByMonth),
 	}
 	b, err := bot.New(config.TelegramToken, opts...)
 	if err != nil {

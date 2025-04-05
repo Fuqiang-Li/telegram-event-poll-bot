@@ -11,12 +11,9 @@ import (
 )
 
 const (
-	timeFormat          = "2006-01-02 15:04"
-	displayTimeFormat   = "Mon, 2006-01-02 15:04"
 	eventCallbackPrefix = "event"
 	callbackPostFixIn   = "IN"
 	callbackPostFixOut  = "OUT"
-	callbackSeparator   = "_"
 )
 
 func (e *Event) String() string {

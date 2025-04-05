@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"os"
+	"time"
 )
 
 type LogConfig struct {
@@ -14,11 +16,15 @@ type LogConfig struct {
 }
 
 type Config struct {
-	TelegramToken string    `json:"telegram_token"`
-	BotName       string    `json:"bot_name"`
-	Logger        LogConfig `json:"logger"`
+	TelegramToken string         `json:"telegram_token"`
+	BotName       string         `json:"bot_name"`
+	TimezoneStr   string         `json:"timezone"`
+	Logger        LogConfig      `json:"logger"`
+	Timezone      *time.Location `json:"-"`
 	// Add other config fields as needed
 }
+
+var AppConfig *Config
 
 func loadConfig(filename string) (*Config, error) {
 	file, err := os.ReadFile(filename)
@@ -30,6 +36,11 @@ func loadConfig(filename string) (*Config, error) {
 	if err := json.Unmarshal(file, &config); err != nil {
 		return nil, err
 	}
-
-	return &config, nil
+	tz, err := time.LoadLocation(config.TimezoneStr)
+	if err != nil {
+		log.Println("err loading time location", config.TimezoneStr, err)
+	}
+	config.Timezone = tz
+	AppConfig = &config
+	return AppConfig, nil
 }
