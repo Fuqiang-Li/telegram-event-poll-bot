@@ -42,7 +42,6 @@ func loadConfig(filename string) (*Config, error) {
 		tz = time.UTC
 	}
 	config.Timezone = tz
-	log.Println("bot name", config.BotName, "timezone", config.Timezone)
 	AppConfig = &config
 	return AppConfig, nil
 }

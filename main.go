@@ -67,7 +67,7 @@ func main() {
 		panic(err)
 	}
 
-	log.Println("Starting App")
+	log.Println("Starting App,", "bot name:", config.BotName, "timezone:", config.Timezone)
 	b.Start(ctx)
 }
 
