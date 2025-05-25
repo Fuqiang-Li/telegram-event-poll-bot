@@ -66,6 +66,7 @@ func main() {
 		bot.WithCallbackQueryDataHandler(eventCallbackPrefix, bot.MatchTypePrefix, eventPollResponseHandler.handle),
 		bot.WithCallbackQueryDataHandler(workplanCallbackPrefix, bot.MatchTypePrefix, activityHandler.handleWorkplanCallback),
 		bot.WithCallbackQueryDataHandler(workplanViewByMonthCallbackPrefix, bot.MatchTypePrefix, activityHandler.handleViewByMonth),
+		bot.WithCallbackQueryDataHandler(workplanUpdateEventCallbackPrefix, bot.MatchTypePrefix, activityHandler.handleUpdateActivityCallback),
 	}
 	b, err := bot.New(config.TelegramToken, opts...)
 	if err != nil {

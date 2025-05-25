@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -33,7 +34,7 @@ func MigrateDB(db *sql.DB) error {
 	}
 	queries = append(queries, "PRAGMA user_version = "+strconv.Itoa(target_db_version))
 	log.Println("Migrating DB to version", target_db_version)
-	log.Println("Executing queries", queries)
+	log.Println("Executing queries:\n", strings.Join(queries, "\n"))
 	tx, err := db.Begin()
 	if err != nil {
 		return err

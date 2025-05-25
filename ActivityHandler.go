@@ -13,16 +13,34 @@ import (
 )
 
 const (
-	workplanCallbackPrefix                = "workplan"
-	workplanOptionViewCurrentMonth        = "viewCurrentMonth"
-	workplanOptionViewByMonth             = "viewByMonth"
-	workplanOptionViewCalendar            = "viewCalendar"
-	workplanOptionAddEvent                = "addEvent"
-	workplanOptionUpdateEvent             = "updateEvent"
-	workplanOptionDeleteEvent             = "deleteEvent"
+	workplanCallbackPrefix         = "workplan"
+	workplanOptionViewCurrentMonth = "viewCurrentMonth"
+	workplanOptionViewByMonth      = "viewByMonth"
+	workplanOptionViewCalendar     = "viewCalendar"
+	workplanOptionAddEvent         = "addEvent"
+	workplanOptionUpdateEvent      = "updateEvent"
+	workplanOptionDeleteEvent      = "deleteEvent"
+
 	workplanViewByMonthCallbackPrefix     = "wpViewByMonth"
 	workplanViewByMonthCallbackOptionAll  = "all"
 	workplanViewByMonthCallbackOptionBack = "back"
+
+	workplanUpdateEventCallbackPrefix          = "wpUpdateevent"
+	workplanUpdateEventCallbackOptionName      = "name"
+	workplanUpdateEventCallbackOptionStartedAt = "startedAt"
+	workplanUpdateEventCallbackOptionCommittee = "committee"
+	workplanUpdateEventCallbackOptionLead      = "lead"
+	workplanUpdateEventCallbackOptionCoLead    = "coLead"
+)
+
+var (
+	activityStepPrompts = map[int]string{
+		1: "Please provide the name for the activity.",
+		2: "Please enter the start time (e.g., YYYY-MM-DD HH:MM).",
+		3: fmt.Sprintf("Please enter the name of the organizing committee. One of %v", AllOrgs),
+		4: "Please enter the name of the lead.",
+		5: "Please enter the name of the co-lead, separated by semicolon(e.g. Person A; Person B)",
+	}
 )
 
 type ActivityHandler struct {
@@ -54,7 +72,7 @@ func (h *ActivityHandler) getWorkplanMenu() (models.InlineKeyboardMarkup, string
 		},
 		{
 			{Text: "Add Event", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionAddEvent}, callbackSeparator)},
-			//{Text: "Update Event", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionUpdateEvent}, callbackSeparator)},
+			{Text: "Update Event", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionUpdateEvent}, callbackSeparator)},
 			{Text: "Delete Event", CallbackData: strings.Join([]string{workplanCallbackPrefix, workplanOptionDeleteEvent}, callbackSeparator)},
 		},
 	}
@@ -146,7 +164,7 @@ func (h *ActivityHandler) handleWorkplanCallback(ctx context.Context, b *bot.Bot
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:          chatID,
 			MessageThreadID: msgThreadID,
-			Text:            "Please provide the name for the new activity.",
+			Text:            activityStepPrompts[1],
 		})
 
 	case workplanOptionUpdateEvent:
@@ -223,87 +241,14 @@ func (h *ActivityHandler) handleViewByMonth(ctx context.Context, b *bot.Bot, upd
 func (h *ActivityHandler) handleAddActivitySteps(ctx context.Context, b *bot.Bot, update *models.Update, userStateKey string, userState *UserState) {
 	chatID := update.Message.Chat.ID
 	msgThreadID := update.Message.MessageThreadID
-
-	switch userState.Step {
-	case 1:
-		// Collect activity name
-		userState.Activity.Name = update.Message.Text
-		userState.Step = 2
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:          chatID,
-			MessageThreadID: msgThreadID,
-			Text:            "Got it! Now please enter the start time (e.g., YYYY-MM-DD HH:MM).",
-		})
-	case 2:
-		// Collect start time
-		startTime, err := time.Parse(timeFormat, update.Message.Text)
-		if err != nil {
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:          chatID,
-				MessageThreadID: msgThreadID,
-				Text:            "Invalid input. Please enter a valid start time in the format YYYY-MM-DD HH:MM. For example, " + timeFormat,
-			})
-			return
-		}
-		userState.Activity.StartedAt = startTime
-		userState.Step = 3
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:          chatID,
-			MessageThreadID: msgThreadID,
-			Text:            fmt.Sprintf("Next, please enter the name of the organizing committee. One of %v", AllOrgs),
-		})
-	case 3:
-		// Collect organizing committee
-		orgInput := Org(strings.ToUpper(update.Message.Text))
-
-		// Check if the provided organization is valid
-		isValidOrg := false
-		for _, org := range AllOrgs {
-			if orgInput == org {
-				isValidOrg = true
-				break
-			}
-		}
-
-		if !isValidOrg {
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:          chatID,
-				MessageThreadID: msgThreadID,
-				Text:            fmt.Sprintf("Invalid org. Please enter one of %v", AllOrgs),
-			})
-			return
-		}
-		userState.Activity.Org = orgInput
-		userState.Step = 4
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:          chatID,
-			MessageThreadID: msgThreadID,
-			Text:            "Now, please enter the name of the lead.",
-		})
-	case 4:
-		// Collect lead
-		userState.Activity.Lead = strings.TrimSpace(update.Message.Text)
-		userState.Step = 5
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:          chatID,
-			MessageThreadID: msgThreadID,
-			Text:            "Finally, please enter the name of the co-lead, separated by semicolon(e.g. Person A; Person B)",
-		})
-	case 5:
-		// Collect co-lead
-		coleads := strings.Split(update.Message.Text, ";")
-		// Remove empty options
-		var validColeads []string
-		for _, colead := range coleads {
-			if opt := strings.TrimSpace(colead); opt != "" {
-				validColeads = append(validColeads, opt)
-			}
-		}
-		userState.Activity.CoLeads = validColeads
-		userState.Step = -1
+	ok := h.handleAddOrUpdateActivitySteps(ctx, b, update, userState, 0)
+	if !ok {
+		return
 	}
 
-	if userState.Step > 0 {
+	userState.Step++
+	if userState.Step < 6 {
+		h.sendAddOrUpdateActivityPrompt(ctx, b, chatID, msgThreadID, userState.Step)
 		return
 	}
 
@@ -327,6 +272,68 @@ func (h *ActivityHandler) handleAddActivitySteps(ctx context.Context, b *bot.Bot
 	})
 	// Clean up user state
 	delete(userStates, userStateKey)
+}
+
+func (h *ActivityHandler) handleAddOrUpdateActivitySteps(ctx context.Context, b *bot.Bot, update *models.Update, userState *UserState, stepOffset int) bool {
+	chatID := update.Message.Chat.ID
+	msgThreadID := update.Message.MessageThreadID
+
+	switch userState.Step {
+	case stepOffset + 1:
+		// Collect activity name
+		userState.Activity.Name = update.Message.Text
+	case stepOffset + 2:
+		// Collect start time
+		startTime, err := time.Parse(timeFormat, update.Message.Text)
+		if err != nil {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:          chatID,
+				MessageThreadID: msgThreadID,
+				Text:            "Invalid input. Please enter a valid start time in the format YYYY-MM-DD HH:MM. For example, " + timeFormat,
+			})
+			return false
+		}
+		userState.Activity.StartedAt = startTime
+	case stepOffset + 3:
+		// Collect organizing committee
+		orgInput := Org(strings.ToUpper(update.Message.Text))
+
+		// Check if the provided organization is valid
+		isValidOrg := false
+		for _, org := range AllOrgs {
+			if orgInput == org {
+				isValidOrg = true
+				break
+			}
+		}
+
+		if !isValidOrg {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:          chatID,
+				MessageThreadID: msgThreadID,
+				Text:            fmt.Sprintf("Invalid org. Please enter one of %v", AllOrgs),
+			})
+			return false
+		}
+		userState.Activity.Org = orgInput
+	case stepOffset + 4:
+		// Collect lead
+		userState.Activity.Lead = strings.TrimSpace(update.Message.Text)
+
+	case stepOffset + 5:
+		// Collect co-lead
+		coleads := strings.Split(update.Message.Text, ";")
+		// Remove empty options
+		var validColeads []string
+		for _, colead := range coleads {
+			if opt := strings.TrimSpace(colead); opt != "" {
+				validColeads = append(validColeads, opt)
+			}
+		}
+		userState.Activity.CoLeads = validColeads
+	}
+
+	return true
 }
 
 func (h *ActivityHandler) handleDeleteActivitySteps(ctx context.Context, b *bot.Bot, update *models.Update, userStateKey string, userState *UserState) {
@@ -370,6 +377,165 @@ func (h *ActivityHandler) handleDeleteActivitySteps(ctx context.Context, b *bot.
 	})
 	// Clean up user state
 	delete(userStates, userStateKey)
+}
+
+func (h *ActivityHandler) handleUpdateActivitySteps(ctx context.Context, b *bot.Bot, update *models.Update, userStateKey string, userState *UserState) {
+	chatID := update.Message.Chat.ID
+	msgThreadID := update.Message.MessageThreadID
+	// Create inline keyboard for update options
+	keyboard := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "Name", CallbackData: strings.Join([]string{workplanUpdateEventCallbackPrefix, workplanUpdateEventCallbackOptionName}, callbackSeparator)},
+				{Text: "Start Time", CallbackData: strings.Join([]string{workplanUpdateEventCallbackPrefix, workplanUpdateEventCallbackOptionStartedAt}, callbackSeparator)},
+				{Text: "Committee", CallbackData: strings.Join([]string{workplanUpdateEventCallbackPrefix, workplanUpdateEventCallbackOptionCommittee}, callbackSeparator)},
+			},
+			{
+				{Text: "Lead", CallbackData: strings.Join([]string{workplanUpdateEventCallbackPrefix, workplanUpdateEventCallbackOptionLead}, callbackSeparator)},
+				{Text: "Co-lead", CallbackData: strings.Join([]string{workplanUpdateEventCallbackPrefix, workplanUpdateEventCallbackOptionCoLead}, callbackSeparator)},
+			},
+		},
+	}
+
+	switch userState.Step {
+	case 1:
+		activityIDStr := strings.TrimSpace(update.Message.Text)
+		activityID, err := strconv.ParseInt(activityIDStr, 10, 64)
+		if err != nil {
+			log.Println("invalid activity ID", activityIDStr, err)
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:          chatID,
+				MessageThreadID: msgThreadID,
+				Text:            "Invalid activity ID! Please enter a valid number.",
+			})
+			return
+		}
+
+		activity, err := h.activityDAO.GetByID(activityID)
+		if err != nil {
+			log.Println("failed to get activity", activityID, err)
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:          chatID,
+				MessageThreadID: msgThreadID,
+				Text:            "Failed to retrieve activity! Please try again.",
+			})
+			return
+		}
+
+		if activity.CreatedBy != getUserFullName(update.Message.From) {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:          chatID,
+				MessageThreadID: msgThreadID,
+				Text:            "You are not authorized to update this activity!",
+			})
+			return
+		}
+
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:          chatID,
+			MessageThreadID: msgThreadID,
+			Text:            fmt.Sprintf("Select what you want to update:\n\n%s", activity.string()),
+			ParseMode:       "HTML",
+			ReplyMarkup:     keyboard,
+		})
+
+		// Update user state to wait for callback query
+		userState.Step = 2
+		userState.Activity = *activity
+
+	case 2:
+		// ignore any message at step 2 as user expeted to send request via callback (inline keyboard)
+		return
+	default:
+		ok := h.handleAddOrUpdateActivitySteps(ctx, b, update, userState, 2)
+		if !ok {
+			return
+		}
+		if err := h.activityDAO.Update(&userState.Activity); err != nil {
+			log.Println("failed to update activity", userState.Activity, err)
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:          chatID,
+				MessageThreadID: msgThreadID,
+				Text:            "Failed to update activity! Please try send the value again!",
+			})
+			return
+		}
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:          chatID,
+			MessageThreadID: msgThreadID,
+			Text:            "Activity updated successfully!\n" + userState.Activity.string(),
+			ParseMode:       "HTML",
+			ReplyMarkup:     keyboard,
+		})
+		userState.Step = 2 // reset to step 2 to allow user to select other option to update
+	}
+
+}
+
+func (h *ActivityHandler) handleUpdateActivityCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
+	messageID := update.CallbackQuery.Message.Message.ID
+	log.Println("update activity callback for message", messageID, "from", getUserFullName(&update.CallbackQuery.From), "Data", update.CallbackQuery.Data)
+
+	options := strings.Split(update.CallbackQuery.Data, callbackSeparator)
+	if len(options) < 2 {
+		log.Println("invalid option callback", update.CallbackQuery.Data)
+		return
+	}
+
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	msgThreadID := update.CallbackQuery.Message.Message.MessageThreadID
+	userStateKey := getUserStateKey(chatID, msgThreadID, &update.CallbackQuery.From)
+
+	userState, exists := userStates[userStateKey]
+	if !exists || userState.StateType != UPDATE_ACTIVITY {
+		log.Println("invalid user state for update activity callback")
+		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+			CallbackQueryID: update.CallbackQuery.ID,
+			Text:            "request too old. not in update mode",
+			ShowAlert:       true,
+		})
+		return
+	}
+
+	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+		ShowAlert:       false,
+	})
+
+	switch options[1] {
+	case workplanUpdateEventCallbackOptionName:
+		userState.Step = 3
+
+	case workplanUpdateEventCallbackOptionStartedAt:
+		userState.Step = 4
+
+	case workplanUpdateEventCallbackOptionCommittee:
+		userState.Step = 5
+
+	case workplanUpdateEventCallbackOptionLead:
+		userState.Step = 6
+
+	case workplanUpdateEventCallbackOptionCoLead:
+		userState.Step = 7
+	default:
+		return
+	}
+
+	h.sendAddOrUpdateActivityPrompt(ctx, b, chatID, msgThreadID, userState.Step-2)
+}
+
+func (h *ActivityHandler) sendAddOrUpdateActivityPrompt(ctx context.Context, b *bot.Bot, chatID int64, msgThreadID int, step int) {
+	prompt, ok := activityStepPrompts[step]
+	if !ok {
+		log.Println("failed to get activity step prompt. step", step)
+		return
+	}
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:          chatID,
+		MessageThreadID: msgThreadID,
+		Text:            prompt,
+	})
 }
 
 // sendAllActivities from past 2 months, total 18 months
