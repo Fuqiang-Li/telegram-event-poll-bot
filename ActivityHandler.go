@@ -307,6 +307,8 @@ func (h *ActivityHandler) handleAddActivitySteps(ctx context.Context, b *bot.Bot
 		return
 	}
 
+	userState.Activity.CreatedBy = getUserFullName(update.Message.From)
+
 	if _, err := h.activityDAO.Save(&userState.Activity); err != nil {
 		log.Println("failed to save activity", userState.Activity, err)
 		b.SendMessage(ctx, &bot.SendMessageParams{

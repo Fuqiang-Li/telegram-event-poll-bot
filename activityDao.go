@@ -24,6 +24,7 @@ type Activity struct {
 	Org       Org
 	Lead      string
 	CoLeads   []string
+	CreatedBy string
 	StartedAt time.Time
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -47,15 +48,16 @@ func NewActivityDAO(db *sql.DB) *ActivityDAO {
 func (dao *ActivityDAO) Initialize() error {
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS activities (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT NOT NULL,
-			org TEXT NOT NULL,
-			lead TEXT NOT NULL,
-			co_leads TEXT,
-			started_at DATETIME NOT NULL,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            org TEXT NOT NULL,
+            lead TEXT NOT NULL,
+            co_leads TEXT,
+            started_at DATETIME NOT NULL,
+            created_by TEXT DEFAULT 'S',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
 	}
 
 	for _, q := range queries {
@@ -70,8 +72,8 @@ func (dao *ActivityDAO) Initialize() error {
 // Create inserts a new activity into the database
 func (dao *ActivityDAO) Save(activity *Activity) (int64, error) {
 	query := `
-		INSERT INTO activities (name, org, lead, co_leads, started_at, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		INSERT INTO activities (name, org, lead, co_leads, started_at, created_by, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`
 
 	coLeadsStr := strings.Join(activity.CoLeads, ",")
@@ -83,6 +85,7 @@ func (dao *ActivityDAO) Save(activity *Activity) (int64, error) {
 		activity.Lead,
 		coLeadsStr,
 		activity.StartedAt,
+		activity.CreatedBy,
 	)
 
 	if err != nil {
@@ -100,7 +103,7 @@ func (dao *ActivityDAO) Save(activity *Activity) (int64, error) {
 // GetByID retrieves an activity by its ID
 func (dao *ActivityDAO) GetByID(id int64) (*Activity, error) {
 	query := `
-		SELECT id, name, org, lead, co_leads, started_at, created_at, updated_at
+		SELECT id, name, org, lead, co_leads, started_at, created_by, created_at, updated_at
 		FROM activities
 		WHERE id = ?
 	`
@@ -117,6 +120,7 @@ func (dao *ActivityDAO) GetByID(id int64) (*Activity, error) {
 		&a.Lead,
 		&coLeadsStr,
 		&a.StartedAt,
+		&a.CreatedBy,
 		&a.CreatedAt,
 		&a.UpdatedAt,
 	)
@@ -137,7 +141,7 @@ func (dao *ActivityDAO) GetByID(id int64) (*Activity, error) {
 // GetByDuration retrieves activities within a specific time range
 func (dao *ActivityDAO) GetByDuration(startTime, endTime time.Time) ([]Activity, error) {
 	query := `
-		SELECT id, name, org, lead, co_leads, started_at, created_at, updated_at
+		SELECT id, name, org, lead, co_leads, started_at, created_by, created_at, updated_at
 		FROM activities
 		WHERE started_at BETWEEN ? AND ?
 		ORDER BY started_at ASC
@@ -162,6 +166,7 @@ func (dao *ActivityDAO) GetByDuration(startTime, endTime time.Time) ([]Activity,
 			&a.Lead,
 			&coLeadsStr,
 			&a.StartedAt,
+			&a.CreatedBy,
 			&a.CreatedAt,
 			&a.UpdatedAt,
 		)
@@ -186,7 +191,7 @@ func (dao *ActivityDAO) GetByDuration(startTime, endTime time.Time) ([]Activity,
 func (dao *ActivityDAO) Update(activity *Activity) error {
 	query := `
 		UPDATE activities
-		SET name = ?, org = ?, lead = ?, co_leads = ?, started_at = ?, updated_at = CURRENT_TIMESTAMP
+		SET name = ?, org = ?, lead = ?, co_leads = ?, started_at = ?, created_by = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
 	`
 
@@ -199,6 +204,7 @@ func (dao *ActivityDAO) Update(activity *Activity) error {
 		activity.Lead,
 		coLeadsStr,
 		activity.StartedAt,
+		activity.CreatedBy,
 		activity.ID,
 	)
 

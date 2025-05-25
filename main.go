@@ -35,6 +35,11 @@ func main() {
 	}
 	defer db.Close()
 
+	err = MigrateDB(db)
+	if err != nil {
+		panic(err)
+	}
+
 	// Initialize the DAO
 	eventDAO := NewEventDAO(db)
 	err = eventDAO.Initialize()
