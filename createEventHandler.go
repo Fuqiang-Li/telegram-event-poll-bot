@@ -48,7 +48,7 @@ func (h *CreateEventHandler) handleSend(ctx context.Context, b *bot.Bot, update 
 		log.Println("error getting event users", err)
 	}
 	eventMsgID := sendEventPoll(ctx, b, chatID, msgThreadID, *event, users)
-	event.updateDetails(chatID, eventMsgID, event.CreatedBy)
+	event.updateDetails(chatID, eventMsgID, event.CreatedBy, event.CreatedByID)
 	err = h.eventDao.UpdateEvent(event)
 	if err != nil {
 		log.Println("error saving event", err)
@@ -158,7 +158,7 @@ func (h *CreateEventHandler) handleSteps(ctx context.Context, b *bot.Bot, update
 		ParseMode:       "Markdown",
 	})
 
-	event.updateDetails(chatID, 0, getUserFullName(update.Message.From))
+	event.updateDetails(chatID, 0, getUserFullName(update.Message.From), update.Message.From.ID)
 	eventID, err := h.eventDao.SaveEvent(&event)
 	if err != nil {
 		log.Println("error saving event", err)

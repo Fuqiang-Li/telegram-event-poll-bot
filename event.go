@@ -28,10 +28,11 @@ func (e *Event) String() string {
 	return msg
 }
 
-func (e *Event) updateDetails(chatID int64, messageID int, createdBy string) {
+func (e *Event) updateDetails(chatID int64, messageID int, createdBy string, createdByID int64) {
 	e.ChatID = chatID
 	e.MessageID = messageID
 	e.CreatedBy = createdBy
+	e.CreatedByID = createdByID
 }
 
 type EventAndUsers struct {

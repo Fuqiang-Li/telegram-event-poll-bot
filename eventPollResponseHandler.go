@@ -56,6 +56,7 @@ func (h *EventPollResponseHandler) handle(ctx context.Context, b *bot.Bot, updat
 		EventID: event.ID,
 		User:    user,
 		Option:  option,
+		UserID:  update.CallbackQuery.From.ID,
 	}
 	if optionType == callbackPostFixIn {
 		err = h.eventDao.SaveEventUser(&eventUser)

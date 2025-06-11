@@ -16,6 +16,7 @@ type Event struct {
 	ChatID      int64
 	MessageID   int
 	CreatedBy   string
+	CreatedByID int64
 	StartedAt   *time.Time
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -24,6 +25,7 @@ type Event struct {
 type EventUser struct {
 	EventID int64
 	User    string
+	UserID  int64
 	Option  string
 }
 
@@ -45,6 +47,7 @@ func (dao *EventDAO) Initialize() error {
 			chat_id INTEGER,
 			message_id INTEGER,
 			created_by TEXT,
+			created_by_id,
 			started_at DATETIME,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -52,6 +55,7 @@ func (dao *EventDAO) Initialize() error {
 		`CREATE TABLE IF NOT EXISTS event_users (
 			event_id INTEGER,
 			user TEXT,
+			user_id INTEGER,
 			option TEXT,
 			FOREIGN KEY(event_id) REFERENCES events(id),
 			UNIQUE(event_id, user, option)
@@ -68,7 +72,7 @@ func (dao *EventDAO) Initialize() error {
 }
 
 func (dao *EventDAO) GetEventByID(eventID int64) (*Event, error) {
-	query := `SELECT id, description, options, chat_id, message_id, created_by,
+	query := `SELECT id, description, options, chat_id, message_id, created_by, created_by_id,
 		started_at, created_at, updated_at FROM events WHERE id = ?`
 	row := dao.db.QueryRow(query, eventID)
 	event := &Event{}
@@ -80,6 +84,7 @@ func (dao *EventDAO) GetEventByID(eventID int64) (*Event, error) {
 		&event.ChatID,
 		&event.MessageID,
 		&event.CreatedBy,
+		&event.CreatedByID,
 		&event.StartedAt,
 		&event.CreatedAt,
 		&event.UpdatedAt,
@@ -97,9 +102,9 @@ func (dao *EventDAO) SaveEvent(event *Event) (int64, error) {
 	optionsStr := strings.Join(event.Options, ";")
 
 	query := `INSERT INTO events (
-		description, options, chat_id, message_id, created_by,
+		description, options, chat_id, message_id, created_by, created_by_id,
 		started_at, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+	) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
 
 	result, err := dao.db.Exec(
 		query,
@@ -108,6 +113,7 @@ func (dao *EventDAO) SaveEvent(event *Event) (int64, error) {
 		event.ChatID,
 		event.MessageID,
 		event.CreatedBy,
+		event.CreatedByID,
 		event.StartedAt,
 	)
 	if err != nil {
@@ -120,7 +126,7 @@ func (dao *EventDAO) UpdateEvent(event *Event) error {
 	optionsStr := strings.Join(event.Options, ";")
 
 	query := `UPDATE events 
-		SET description = ?, options = ?, chat_id = ?, message_id = ?, created_by = ?,
+		SET description = ?, options = ?, chat_id = ?, message_id = ?, created_by = ?, created_by_id = ?,
 		started_at = ?, updated_at = CURRENT_TIMESTAMP 
 		WHERE id = ?`
 	_, err := dao.db.Exec(query,
@@ -129,6 +135,7 @@ func (dao *EventDAO) UpdateEvent(event *Event) error {
 		event.ChatID,
 		event.MessageID,
 		event.CreatedBy,
+		event.CreatedByID,
 		event.StartedAt,
 		event.ID,
 	)
@@ -144,7 +151,7 @@ func (dao *EventDAO) UpdateMessageID(eventID int64, messageID int) error {
 }
 
 func (dao *EventDAO) GetEventByMessageID(messageID int) (*Event, error) {
-	query := `SELECT id, description, options, chat_id, message_id, created_by,
+	query := `SELECT id, description, options, chat_id, message_id, created_by, created_by_id,
 		started_at, created_at, updated_at FROM events WHERE message_id = ?`
 	row := dao.db.QueryRow(query, messageID)
 	event := &Event{}
@@ -156,6 +163,7 @@ func (dao *EventDAO) GetEventByMessageID(messageID int) (*Event, error) {
 		&event.ChatID,
 		&event.MessageID,
 		&event.CreatedBy,
+		&event.CreatedByID,
 		&event.StartedAt,
 		&event.CreatedAt,
 		&event.UpdatedAt,
@@ -170,7 +178,7 @@ func (dao *EventDAO) GetEventByMessageID(messageID int) (*Event, error) {
 }
 
 func (dao *EventDAO) GetEventUsers(eventID int64) ([]EventUser, error) {
-	query := "SELECT event_id, user, option FROM event_users WHERE event_id = ?"
+	query := "SELECT event_id, user, option, user_id FROM event_users WHERE event_id = ?"
 	rows, err := dao.db.Query(query, eventID)
 	if err != nil {
 		return nil, err
@@ -180,7 +188,7 @@ func (dao *EventDAO) GetEventUsers(eventID int64) ([]EventUser, error) {
 	var users []EventUser
 	for rows.Next() {
 		var eventUser EventUser
-		err := rows.Scan(&eventUser.EventID, &eventUser.User, &eventUser.Option)
+		err := rows.Scan(&eventUser.EventID, &eventUser.User, &eventUser.Option, &eventUser.UserID)
 		if err != nil {
 			return nil, err
 		}
@@ -190,14 +198,14 @@ func (dao *EventDAO) GetEventUsers(eventID int64) ([]EventUser, error) {
 }
 
 func (dao *EventDAO) SaveEventUser(eventUser *EventUser) error {
-	query := "INSERT INTO event_users (event_id, user, option) VALUES (?, ?, ?)"
-	_, err := dao.db.Exec(query, eventUser.EventID, eventUser.User, eventUser.Option)
+	query := "INSERT INTO event_users (event_id, user, option, user_id) VALUES (?, ?, ?, ?)"
+	_, err := dao.db.Exec(query, eventUser.EventID, eventUser.User, eventUser.Option, eventUser.UserID)
 	return err
 }
 
 func (dao *EventDAO) DeleteEventUser(eventUser *EventUser) (int64, error) {
-	query := "DELETE FROM event_users WHERE event_id = ? AND user = ? AND option = ?"
-	result, err := dao.db.Exec(query, eventUser.EventID, eventUser.User, eventUser.Option)
+	query := "DELETE FROM event_users WHERE event_id = ? AND option = ? AND ((user_id = ?) OR (user = ? AND user_id = 0))"
+	result, err := dao.db.Exec(query, eventUser.EventID, eventUser.Option, eventUser.UserID, eventUser.User)
 	if err != nil {
 		return 0, err
 	}

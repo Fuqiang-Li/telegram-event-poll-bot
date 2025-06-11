@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	target_db_version = 1
+	target_db_version = 2
 )
 
 var (
@@ -16,10 +16,30 @@ var (
 		1: {
 			`ALTER TABLE activities ADD COLUMN created_by TEXT DEFAULT 'S'`,
 		},
+		2: {
+			`ALTER TABLE activities ADD COLUMN created_by_id INTEGER DEFAULT 0`,
+			`ALTER TABLE events ADD COLUMN created_by_id INTEGER DEFAULT 0`,
+			`ALTER TABLE event_users ADD COLUMN user_id INTEGER DEFAULT 0`,
+		},
 	}
 )
 
 func MigrateDB(db *sql.DB) error {
+	setDbUserVersionQuery := "PRAGMA user_version = " + strconv.Itoa(target_db_version)
+
+	// Check if the database is empty
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table'").Scan(&count)
+	if err != nil {
+		return err
+	}
+	// If database is empty, just set the version and return
+	// otherwise, check to migrate db
+	if count == 0 {
+		_, err = db.Exec(setDbUserVersionQuery)
+		return err
+	}
+
 	userVersion, err := GetDBVersion(db)
 	if err != nil {
 		return err
@@ -32,7 +52,7 @@ func MigrateDB(db *sql.DB) error {
 	for i := userVersion; i < target_db_version; i++ {
 		queries = append(queries, dbMigrationMap[i+1]...)
 	}
-	queries = append(queries, "PRAGMA user_version = "+strconv.Itoa(target_db_version))
+	queries = append(queries, setDbUserVersionQuery)
 	log.Println("Migrating DB to version", target_db_version)
 	log.Println("Executing queries:\n", strings.Join(queries, "\n"))
 	tx, err := db.Begin()
