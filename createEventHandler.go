@@ -34,7 +34,7 @@ func (h *CreateEventHandler) handleSend(ctx context.Context, b *bot.Bot, update 
 	}
 	chatID := update.Message.Chat.ID
 	msgThreadID := update.Message.MessageThreadID
-	if event.CreatedBy != getUserFullName(update.Message.From) {
+	if !isSameUser(update.Message.From, event.CreatedBy, event.CreatedByID) {
 		log.Println("event not created by user", getUserFullName(update.Message.From))
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:          chatID,

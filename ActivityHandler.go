@@ -423,7 +423,7 @@ func (h *ActivityHandler) handleUpdateActivitySteps(ctx context.Context, b *bot.
 			return
 		}
 
-		if activity.CreatedBy != getUserFullName(update.Message.From) {
+		if !isSameUser(update.Message.From, activity.CreatedBy, activity.CreatedByID) {
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:          chatID,
 				MessageThreadID: msgThreadID,

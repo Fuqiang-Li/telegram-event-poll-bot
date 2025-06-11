@@ -27,7 +27,14 @@ func getCommandArgument(update *models.Update) string {
 }
 
 func getUserStateKey(chatID int64, msgThreadID int, user *models.User) string {
-	return fmt.Sprintf("%d:%d:%s", chatID, msgThreadID, user.Username)
+	return fmt.Sprintf("%d:%d:%d", chatID, msgThreadID, user.ID)
+}
+
+func isSameUser(toCheck *models.User, fullname string, userID int64) bool {
+	if userID != 0 {
+		return toCheck.ID == userID
+	}
+	return getUserFullName(toCheck) == fullname
 }
 
 func getCurrentMonthInUTC() time.Time {
