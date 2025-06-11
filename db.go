@@ -20,6 +20,7 @@ var (
 			`ALTER TABLE activities ADD COLUMN created_by_id INTEGER DEFAULT 0`,
 			`ALTER TABLE events ADD COLUMN created_by_id INTEGER DEFAULT 0`,
 			`ALTER TABLE event_users ADD COLUMN user_id INTEGER DEFAULT 0`,
+			`ALTER TABLE event_users ADD COLUMN deleted BOOLEAN DEFAULT FALSE`,
 		},
 	}
 )

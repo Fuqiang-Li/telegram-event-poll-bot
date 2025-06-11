@@ -44,10 +44,7 @@ func (e *EventAndUsers) GetPollMessage() (string, *models.InlineKeyboardMarkup) 
 	inlineKeyboard := make([][]models.InlineKeyboardButton, 0)
 	for _, option := range e.Options {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: option + callbackSeparator + callbackPostFixIn, CallbackData: strings.Join([]string{eventCallbackPrefix, option, callbackPostFixIn}, callbackSeparator)},
-		})
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: option + callbackSeparator + callbackPostFixOut, CallbackData: strings.Join([]string{eventCallbackPrefix, option, callbackPostFixOut}, callbackSeparator)},
+			{Text: option, CallbackData: strings.Join([]string{eventCallbackPrefix, option}, callbackSeparator)},
 		})
 	}
 	kb := &models.InlineKeyboardMarkup{

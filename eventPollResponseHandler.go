@@ -46,29 +46,37 @@ func (h *EventPollResponseHandler) handle(ctx context.Context, b *bot.Bot, updat
 	})
 	user := getUserFullName(&update.CallbackQuery.From)
 	optionInputs := strings.Split(update.CallbackQuery.Data, callbackSeparator)
-	if len(optionInputs) < 3 {
+	if len(optionInputs) < 2 {
 		log.Println("invalid option callback", update.CallbackQuery.Data)
 		return
 	}
 	option := optionInputs[1]
-	optionType := optionInputs[2]
 	eventUser := EventUser{
 		EventID: event.ID,
 		User:    user,
 		Option:  option,
 		UserID:  update.CallbackQuery.From.ID,
 	}
-	if optionType == callbackPostFixIn {
-		err = h.eventDao.SaveEventUser(&eventUser)
+	if len(optionInputs) == 2 {
+		err := h.eventDao.ToggleEventUser(&eventUser)
 		if err != nil {
 			log.Println("error updating event user", err)
 			return
 		}
-	} else if optionType == callbackPostFixOut {
-		affectedRows, err := h.eventDao.DeleteEventUser(&eventUser)
-		if affectedRows == 0 {
-			log.Println("no event user deleted", err)
-			return
+	} else {
+		optionType := optionInputs[2]
+		if optionType == callbackPostFixIn {
+			err = h.eventDao.SaveEventUser(&eventUser)
+			if err != nil {
+				log.Println("error updating event user", err)
+				return
+			}
+		} else if optionType == callbackPostFixOut {
+			affectedRows, err := h.eventDao.DeleteEventUser(&eventUser)
+			if affectedRows == 0 {
+				log.Println("no event user deleted", err)
+				return
+			}
 		}
 	}
 	users, err := h.eventDao.GetEventUsers(event.ID)

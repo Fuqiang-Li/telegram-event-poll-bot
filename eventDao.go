@@ -57,9 +57,10 @@ func (dao *EventDAO) Initialize() error {
 			user TEXT,
 			user_id INTEGER,
 			option TEXT,
-			FOREIGN KEY(event_id) REFERENCES events(id),
-			UNIQUE(event_id, user, option)
+			deleted BOOLEAN DEFAULT FALSE,
+			FOREIGN KEY(event_id) REFERENCES events(id)
 		)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_event_users ON event_users (event_id, user_id, user, option)`,
 	}
 
 	for _, q := range queries {
@@ -178,7 +179,7 @@ func (dao *EventDAO) GetEventByMessageID(messageID int) (*Event, error) {
 }
 
 func (dao *EventDAO) GetEventUsers(eventID int64) ([]EventUser, error) {
-	query := "SELECT event_id, user, option, user_id FROM event_users WHERE event_id = ?"
+	query := "SELECT event_id, user, option, user_id FROM event_users WHERE event_id = ? and deleted = FALSE"
 	rows, err := dao.db.Query(query, eventID)
 	if err != nil {
 		return nil, err
@@ -200,6 +201,19 @@ func (dao *EventDAO) GetEventUsers(eventID int64) ([]EventUser, error) {
 func (dao *EventDAO) SaveEventUser(eventUser *EventUser) error {
 	query := "INSERT INTO event_users (event_id, user, option, user_id) VALUES (?, ?, ?, ?)"
 	_, err := dao.db.Exec(query, eventUser.EventID, eventUser.User, eventUser.Option, eventUser.UserID)
+	return err
+}
+
+func (dao *EventDAO) ToggleEventUser(eventUser *EventUser) error {
+	// old unique index in db event_id, user, option
+	query := "INSERT INTO event_users (event_id, user, option, user_id) VALUES (?, ?, ?, ?) ON CONFLICT(event_id, user, option) DO UPDATE SET deleted = NOT deleted, user_id = excluded.user_id"
+	_, err := dao.db.Exec(query, eventUser.EventID, eventUser.User, eventUser.Option, eventUser.UserID)
+	if err == nil {
+		return nil
+	}
+	// new unique index in db event_id, user_id, user, option
+	query = "INSERT INTO event_users (event_id, user, option, user_id) VALUES (?, ?, ?, ?) ON CONFLICT(event_id, user_id, user, option) DO UPDATE SET deleted = NOT deleted, user_id = excluded.user_id"
+	_, err = dao.db.Exec(query, eventUser.EventID, eventUser.User, eventUser.Option, eventUser.UserID)
 	return err
 }
 

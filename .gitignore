@@ -3,6 +3,7 @@
 config.json
 config_dev.json
 *.db
+*.db-journal
 app.log
 eventpoll
 build
