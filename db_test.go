@@ -24,13 +24,22 @@ func setupTestDB(t *testing.T) *sql.DB {
 	}
 
 	// Create the activities table if it doesn't exist
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS activities (
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS activities (
 			id INTEGER PRIMARY KEY
-		)
-	`)
-	if err != nil {
-		t.Fatalf("Failed to create activities table: %v", err)
+		)`,
+		`CREATE TABLE IF NOT EXISTS events (
+			id INTEGER PRIMARY KEY
+		)`,
+		`CREATE TABLE IF NOT EXISTS event_users (
+			id INTEGER PRIMARY KEY
+		)`,
+	}
+	for _, q := range queries {
+		_, err := db.Exec(q)
+		if err != nil {
+			t.Fatalf("Failed to setup db for testing. query: %s, err: %v", q, err)
+		}
 	}
 
 	return db
