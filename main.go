@@ -60,10 +60,13 @@ func main() {
 
 	opts := []bot.Option{
 		bot.WithDefaultHandler(defaultHandler.handle),
-		bot.WithMessageTextHandler("/start", bot.MatchTypePrefix, createEventHandler.handleStart),
-		bot.WithMessageTextHandler("/send", bot.MatchTypePrefix, createEventHandler.handleSend),
+		bot.WithMessageTextHandler("/poll", bot.MatchTypePrefix, createEventHandler.handleStart), // start to create a new poll
+		bot.WithMessageTextHandler("/send", bot.MatchTypePrefix, createEventHandler.handleSend),  // send a poll by id
 		bot.WithMessageTextHandler("/workplan", bot.MatchTypePrefix, activityHandler.handleWorkplan),
+		// poll callbacks
+		bot.WithCallbackQueryDataHandler(updatePollCallbackPrefix, bot.MatchTypePrefix, createEventHandler.handleUpdatePollCallback),
 		bot.WithCallbackQueryDataHandler(eventCallbackPrefix, bot.MatchTypePrefix, eventPollResponseHandler.handle),
+		// workplan callbacks
 		bot.WithCallbackQueryDataHandler(workplanCallbackPrefix, bot.MatchTypePrefix, activityHandler.handleWorkplanCallback),
 		bot.WithCallbackQueryDataHandler(workplanViewByMonthCallbackPrefix, bot.MatchTypePrefix, activityHandler.handleViewByMonth),
 		bot.WithCallbackQueryDataHandler(workplanUpdateEventCallbackPrefix, bot.MatchTypePrefix, activityHandler.handleUpdateActivityCallback),

@@ -49,3 +49,13 @@ func getCurrentMonthInUTC() time.Time {
 func addLocalTimezone(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), AppConfig.Timezone)
 }
+
+// delete element from string slice, case insensitive
+func deleteElementFromStrSlice(slice []string, element string) []string {
+	for i, e := range slice {
+		if strings.EqualFold(e, element) {
+			return append(slice[:i], slice[i+1:]...)
+		}
+	}
+	return slice
+}

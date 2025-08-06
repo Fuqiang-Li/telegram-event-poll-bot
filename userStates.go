@@ -4,6 +4,7 @@ type StateType string
 
 const (
 	CREATE_EVENT    StateType = "CREATE_EVENT"
+	UPDATE_EVENT    StateType = "UPDATE_EVENT"
 	ADD_ACTIVITY    StateType = "ADD_ACTIVITY"
 	UPDATE_ACTIVITY StateType = "UPDATE_ACTIVITY"
 	DELETE_ACTIVITY StateType = "DELETE_ACTIVITY"

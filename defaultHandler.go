@@ -32,7 +32,9 @@ func (h *DefaultHandler) handle(ctx context.Context, b *bot.Bot, update *models.
 
 	switch userState.StateType {
 	case CREATE_EVENT:
-		h.createEventHandler.handleSteps(ctx, b, update, userStateKey, userState)
+		h.createEventHandler.handleCreateEvent(ctx, b, update, userStateKey)
+	case UPDATE_EVENT:
+		h.createEventHandler.handleUpdatePollInput(ctx, b, update, userStateKey, userState)
 	case ADD_ACTIVITY:
 		h.activityHandler.handleAddActivitySteps(ctx, b, update, userStateKey, userState)
 	case UPDATE_ACTIVITY:
