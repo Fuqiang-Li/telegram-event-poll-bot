@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 
@@ -97,6 +98,56 @@ func (dao *EventDAO) GetEventByID(eventID int64) (*Event, error) {
 		event.Options = strings.Split(optionsStr, ";")
 	}
 	return event, nil
+}
+
+func (dao *EventDAO) GetEventsByIDs(eventIDs []int64) ([]*Event, error) {
+	if len(eventIDs) == 0 {
+		return nil, nil
+	}
+	// Build the correct query for variable number of eventIDs
+	placeholders := make([]string, len(eventIDs))
+	args := make([]interface{}, len(eventIDs))
+	for i, id := range eventIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	placeholderStr := strings.Join(placeholders, ",")
+	query := `SELECT id, description, options, chat_id, message_id, created_by, created_by_id,
+		started_at, created_at, updated_at FROM events WHERE id IN (` + placeholderStr + `)`
+	rows, err := dao.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []*Event
+	for rows.Next() {
+		var event Event
+		var optionsStr string
+		err := rows.Scan(
+			&event.ID,
+			&event.Description,
+			&optionsStr,
+			&event.ChatID,
+			&event.MessageID,
+			&event.CreatedBy,
+			&event.CreatedByID,
+			&event.StartedAt,
+			&event.CreatedAt,
+			&event.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if optionsStr != "" {
+			event.Options = strings.Split(optionsStr, ";")
+		}
+		events = append(events, &event)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return events, nil
 }
 
 func (dao *EventDAO) SaveEvent(event *Event) (int64, error) {
@@ -228,6 +279,47 @@ func (dao *EventDAO) DeleteEventUser(eventUser *EventUser) (int64, error) {
 		return 0, err
 	}
 	return rowsAffected, nil
+}
+
+func (dao *EventDAO) GetEventUsersByUser(user string, userID int64) ([]EventUser, error) {
+	query := `
+		SELECT event_id, user, option, user_id
+		FROM event_users
+		WHERE (user_id = ? AND user_id != 0) OR (user = ? AND user_id = 0)
+		AND not deleted
+	`
+	rows, err := dao.db.Query(query, userID, userID, user)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var eventUsers []EventUser
+	for rows.Next() {
+		var eventUser EventUser
+		err := rows.Scan(&eventUser.EventID, &eventUser.User, &eventUser.Option, &eventUser.UserID)
+		if err != nil {
+			return nil, err
+		}
+		eventUsers = append(eventUsers, eventUser)
+	}
+	return eventUsers, nil
+}
+
+func (dao *EventDAO) GetEventsVotedByUser(user string, userID int64) ([]*Event, []EventUser, error) {
+	fmt.Println(user, userID)
+	eventUsers, err := dao.GetEventUsersByUser(user, userID)
+	fmt.Println(eventUsers)
+	if err != nil {
+		return nil, nil, err
+	}
+	var eventIDs []int64
+	for _, eu := range eventUsers {
+		eventIDs = append(eventIDs, eu.EventID)
+	}
+	fmt.Println(eventIDs)
+	events, err := dao.GetEventsByIDs(eventIDs)
+	return events, eventUsers, err
 }
 
 // Add a new method to update the start time

@@ -56,12 +56,14 @@ func main() {
 	createEventHandler := NewCreateEventHandler(eventDAO, config.BotName)
 	eventPollResponseHandler := NewEventPollResponseHandler(eventDAO)
 	activityHandler := NewActivityHandler(activityDAO)
+	userHandler := NewUserHandler(eventDAO)
 	defaultHandler := NewDefaultHandler(createEventHandler, activityHandler)
 
 	opts := []bot.Option{
 		bot.WithDefaultHandler(defaultHandler.handle),
-		bot.WithMessageTextHandler("/poll", bot.MatchTypePrefix, createEventHandler.handleStart), // start to create a new poll
-		bot.WithMessageTextHandler("/send", bot.MatchTypePrefix, createEventHandler.handleSend),  // send a poll by id
+		bot.WithMessageTextHandler("/poll", bot.MatchTypeExact, createEventHandler.handleStart), // start to create a new poll
+		bot.WithMessageTextHandler("/send", bot.MatchTypePrefix, createEventHandler.handleSend), // send a poll by id
+		bot.WithMessageTextHandler("/myvotes", bot.MatchTypeExact, userHandler.sendMyVotedEvents),
 		bot.WithMessageTextHandler("/workplan", bot.MatchTypePrefix, activityHandler.handleWorkplan),
 		// poll callbacks
 		bot.WithCallbackQueryDataHandler(updatePollCallbackPrefix, bot.MatchTypePrefix, createEventHandler.handleUpdatePollCallback),
