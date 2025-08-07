@@ -67,6 +67,7 @@ func main() {
 		bot.WithMessageTextHandler("/workplan", bot.MatchTypePrefix, activityHandler.handleWorkplan),
 		// poll callbacks
 		bot.WithCallbackQueryDataHandler(updatePollCallbackPrefix, bot.MatchTypePrefix, createEventHandler.handleUpdatePollCallback),
+		bot.WithCallbackQueryDataHandler(pollDeleteOptionCallbackPrefix, bot.MatchTypePrefix, createEventHandler.handleDeleteOptionCallback),
 		bot.WithCallbackQueryDataHandler(eventCallbackPrefix, bot.MatchTypePrefix, eventPollResponseHandler.handle),
 		// workplan callbacks
 		bot.WithCallbackQueryDataHandler(workplanCallbackPrefix, bot.MatchTypePrefix, activityHandler.handleWorkplanCallback),
