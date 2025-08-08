@@ -74,9 +74,8 @@ func (h *CreateEventHandler) handleSend(ctx context.Context, b *bot.Bot, update 
 	event.updateDetails(chatID, eventMsgID, event.CreatedBy, event.CreatedByID)
 	err = h.eventDao.UpdateEvent(event)
 	if err != nil {
-		log.Println("error saving event", err)
+		log.Println("error updating event", event.ID, err)
 	}
-	log.Println("event id", eventID)
 }
 
 func (h *CreateEventHandler) handleStart(ctx context.Context, b *bot.Bot, update *models.Update) {
