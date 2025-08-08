@@ -21,9 +21,8 @@ const (
 	workplanOptionUpdateEvent      = "updateEvent"
 	workplanOptionDeleteEvent      = "deleteEvent"
 
-	workplanViewByMonthCallbackPrefix     = "wpViewByMonth"
-	workplanViewByMonthCallbackOptionAll  = "all"
-	workplanViewByMonthCallbackOptionBack = "back"
+	workplanViewByMonthCallbackPrefix    = "wpViewByMonth"
+	workplanViewByMonthCallbackOptionAll = "all"
 
 	workplanUpdateEventCallbackPrefix          = "wpUpdateevent"
 	workplanUpdateEventCallbackOptionName      = "name"
@@ -134,7 +133,7 @@ func (h *ActivityHandler) handleWorkplanCallback(ctx context.Context, b *bot.Bot
 		inlineButtons[len(inlineButtons)-1] = append(inlineButtons[len(inlineButtons)-1], button)
 		button = models.InlineKeyboardButton{
 			Text:         "<< back",
-			CallbackData: strings.Join([]string{workplanViewByMonthCallbackPrefix, workplanViewByMonthCallbackOptionBack}, callbackSeparator),
+			CallbackData: strings.Join([]string{workplanViewByMonthCallbackPrefix, callbackNavBack}, callbackSeparator),
 		}
 		inlineButtons[len(inlineButtons)-1] = append(inlineButtons[len(inlineButtons)-1], button)
 
@@ -204,7 +203,7 @@ func (h *ActivityHandler) handleViewByMonth(ctx context.Context, b *bot.Bot, upd
 	case workplanViewByMonthCallbackOptionAll:
 		h.sendAllActivities(ctx, b, chatID, msgThreadID)
 		return
-	case workplanViewByMonthCallbackOptionBack:
+	case callbackNavBack:
 		kb, msg := h.getWorkplanMenu()
 		_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
 			ChatID:      chatID,

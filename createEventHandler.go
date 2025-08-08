@@ -185,6 +185,9 @@ func (h *CreateEventHandler) handleUpdatePollCallback(ctx context.Context, b *bo
 				{Text: option, CallbackData: strings.Join([]string{pollDeleteOptionCallbackPrefix, eventIDStr, option}, callbackSeparator)},
 			})
 		}
+		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
+			{Text: "<< back", CallbackData: strings.Join([]string{pollDeleteOptionCallbackPrefix, eventIDStr, callbackNavBack}, callbackSeparator)},
+		})
 		kb := &models.InlineKeyboardMarkup{
 			InlineKeyboard: inlineKeyboard,
 		}
@@ -301,6 +304,14 @@ func (h *CreateEventHandler) handleDeleteOptionCallback(ctx context.Context, b *
 		})
 		return
 	}
+	if optionToDelete == "" {
+		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+			CallbackQueryID: update.CallbackQuery.ID,
+			Text:            "No option specified to delete.",
+			ShowAlert:       true,
+		})
+		return
+	}
 
 	event, err := h.eventDao.GetEventByID(eventID)
 	if err != nil || event == nil {
@@ -313,45 +324,46 @@ func (h *CreateEventHandler) handleDeleteOptionCallback(ctx context.Context, b *
 		return
 	}
 
-	if optionToDelete == "" {
+	if !isSameUser(&update.CallbackQuery.From, event.CreatedBy, event.CreatedByID) {
+		log.Println("event not created by user", getUserFullName(update.Message.From))
 		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 			CallbackQueryID: update.CallbackQuery.ID,
-			Text:            "No option specified to delete.",
 			ShowAlert:       true,
+			Text:            "You are not authorized to update this event",
 		})
 		return
 	}
 
-	// Remove the option from the event
-	originalLen := len(event.Options)
-	event.Options = deleteElementFromStrSlice(event.Options, optionToDelete)
-	if len(event.Options) == originalLen {
-		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
-			CallbackQueryID: update.CallbackQuery.ID,
-			Text:            "Option not found in event.",
-			ShowAlert:       true,
-		})
-		return
-	}
+	if optionToDelete != callbackNavBack {
+		// Remove the option from the event
+		originalLen := len(event.Options)
+		event.Options = deleteElementFromStrSlice(event.Options, optionToDelete)
+		if len(event.Options) == originalLen {
+			b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+				CallbackQueryID: update.CallbackQuery.ID,
+				Text:            "Option not found in event.",
+				ShowAlert:       true,
+			})
+			return
+		}
 
-	err = h.eventDao.UpdateEvent(event)
-	if err != nil {
-		log.Println("error updating event after deleting option:", err)
-		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
-			CallbackQueryID: update.CallbackQuery.ID,
-			Text:            "Failed to update event.",
-			ShowAlert:       true,
-		})
-		return
+		err = h.eventDao.UpdateEvent(event)
+		if err != nil {
+			log.Println("error updating event after deleting option:", err)
+			b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+				CallbackQueryID: update.CallbackQuery.ID,
+				Text:            "Failed to update event.",
+				ShowAlert:       true,
+			})
+			return
+		}
 	}
 
 	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
-		Text:            "Option deleted.",
 		ShowAlert:       false,
 	})
 
-	// Optionally, update the event message in chat
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	messageID := update.CallbackQuery.Message.Message.ID
 	text, keyboard := h.getEventMsg(event, false)
@@ -395,9 +407,13 @@ func (h *CreateEventHandler) getEventMsg(event *Event, isNew bool) (string, *mod
 			},
 			{
 				{Text: "Add Option", CallbackData: strings.Join([]string{updatePollCallbackPrefix, updatePollCallbackAddOption, eventIDStr}, callbackSeparator)},
-				{Text: "Delete Option", CallbackData: strings.Join([]string{updatePollCallbackPrefix, updatePollCallbackDeleteOption, eventIDStr}, callbackSeparator)},
 			},
 		},
+	}
+	// only allow delete option when it has more than 1
+	if len(event.Options) > 1 {
+		deleteOptionButton := models.InlineKeyboardButton{Text: "Delete Option", CallbackData: strings.Join([]string{updatePollCallbackPrefix, updatePollCallbackDeleteOption, eventIDStr}, callbackSeparator)}
+		keyboard.InlineKeyboard[1] = append(keyboard.InlineKeyboard[1], deleteOptionButton)
 	}
 
 	text := event.String() + "\n\n" + "You can update the poll by clicking the buttons below."
