@@ -50,6 +50,11 @@ func addLocalTimezone(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), AppConfig.Timezone)
 }
 
+func getBeginingOfDay(t time.Time) time.Time {
+	y, m, d := t.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
+}
+
 // delete element from string slice, case insensitive
 func deleteElementFromStrSlice(slice []string, element string) []string {
 	for i, e := range slice {

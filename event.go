@@ -75,6 +75,7 @@ func sendEventPoll(ctx context.Context, b *bot.Bot, chatID any, messageThreadID 
 		log.Println("Error sending event poll to", chatID, err)
 		return 0
 	}
+	log.Println("event poll", event.ID, "has been sent to chatID", chatID, "messageThreadID", messageThreadID)
 	return msg.ID
 }
 
